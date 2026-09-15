@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="Team Activity Tracker - dashboard multiutente e multi-progetto con Supabase" />
-  <title>Team Activity Tracker | Multi-Progetto</title>
+  <title>Team Activity Tracker | Multi-Progetto V6</title>
   <style>
 :root{
   --bg:#f3f6fa;--panel:#fff;--text:#152235;--muted:#66758a;--line:#dce4ee;
@@ -81,6 +81,20 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
 @media(max-width:1050px){.projects-home-grid{grid-template-columns:repeat(2,minmax(240px,1fr))}}
 @media(max-width:680px){.projects-home-grid{grid-template-columns:1fr}.project-home-hero h2{font-size:23px}}
 
+
+/* ===== V6 · Gestione progetti + risorse + utenti ===== */
+.project-home-card{cursor:default}
+.project-card-main{cursor:pointer;display:flex;flex-direction:column;gap:12px;flex:1}
+.project-card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px;padding-top:10px;border-top:1px solid var(--line)}
+.project-card-actions .btn{padding:7px 10px;font-size:12px}
+.project-resource-total{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;border-radius:11px;background:#f8fafc;border:1px solid #edf1f5}
+.project-resource-total span{font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.project-resource-total b{font-size:19px;color:var(--ink)}
+.home-admin-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn.danger-soft{border-color:#f5c2c7;color:#b42318;background:#fff7f7}
+.btn.danger-soft:hover{background:#fff0f0}
+.project-dialog-note{padding:9px 11px;border-radius:10px;background:#f8fafc;border:1px solid var(--line);font-size:12px;color:var(--muted);margin-top:4px}
+
 </style>
 </head>
 <body>
@@ -130,8 +144,9 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
             <h2>I miei progetti</h2>
             <p>Scegli il progetto su cui vuoi lavorare. Lo stesso link gestisce tutti i cruscotti del team.</p>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div class="home-admin-actions">
             <span id="homeRoleBadge" class="home-role-badge"></span>
+            <button id="homeUsersBtn" class="btn hidden">👥 Utenti</button>
             <button id="homeNewProjectBtn" class="btn primary hidden">＋ Nuovo progetto</button>
           </div>
         </div>
@@ -142,7 +157,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </div>
         <div id="projectsHomeGrid" class="projects-home-grid"></div>
 
-        <section id="accessOverview" class="card access-card hidden">
+        <section id="accessOverview" class="card access-card hidden" style="display:none!important">
         <div class="access-head">
           <div>
             <h3>Accessi alla dashboard</h3>
@@ -256,13 +271,14 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
 
   <dialog id="projectDialog">
     <form id="projectForm" method="dialog">
-      <div class="modal-head"><div><h3>Nuovo progetto</h3><small class="muted">Il progetto sarà disponibile agli Admin Interni. Gli Editor Esterni vanno assegnati dalla sezione Accessi.</small></div><button class="close" type="button" data-close="projectDialog">×</button></div>
+      <div class="modal-head"><div><h3 id="projectDialogTitle">Nuovo progetto</h3><small id="projectDialogHelp" class="muted">Il progetto sarà disponibile agli Admin Interni. Gli Editor Esterni vanno assegnati dal pulsante Utenti.</small></div><button class="close" type="button" data-close="projectDialog">×</button></div>
       <div class="modal-body">
         <label>Codice progetto<input id="projectCode" class="field" maxlength="30" placeholder="es. ARPA, FESR, POC" required /></label>
         <label>Nome progetto<input id="projectName" class="field" maxlength="120" placeholder="es. ARPA Sicilia" required /></label>
         <label class="span2">Descrizione<textarea id="projectDescription" class="field" rows="4" placeholder="Descrizione sintetica del progetto"></textarea></label>
+        <div class="span2 project-dialog-note">La cancellazione di un progetto dalla dashboard è gestita in modo sicuro: il progetto viene disattivato e nascosto, mentre attività e storico restano conservati nel database.</div>
       </div>
-      <div class="modal-foot"><button class="btn" type="button" data-close="projectDialog">Annulla</button><button class="btn primary" type="submit">Crea progetto</button></div>
+      <div class="modal-foot"><button class="btn" type="button" data-close="projectDialog">Annulla</button><button id="projectSubmitBtn" class="btn primary" type="submit">Crea progetto</button></div>
     </form>
   </dialog>
 
@@ -311,6 +327,7 @@ let projects = [];
 let currentProject = null;
 let accessUsers = [];
 let projectMemberships = [];
+let editingProjectId = null;
 
 const $ = (id) => document.getElementById(id);
 const esc = (v='') => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -398,16 +415,14 @@ function wireEvents() {
   $('csvInput').addEventListener('change', importCSV);
   $('activityForm').addEventListener('submit', saveActivity);
   $('deleteActivityBtn').addEventListener('click', deleteActivity);
-  $('manageUsersBtn').addEventListener('click', () => {
-    showProjectHome();
-    setTimeout(() => $('accessOverview').scrollIntoView({behavior:'smooth',block:'start'}), 60);
-  });
+  $('manageUsersBtn').addEventListener('click', openUsersDialog);
+  $('homeUsersBtn').addEventListener('click', openUsersDialog);
   $('changePasswordBtn').addEventListener('click', () => { $('passwordError').textContent=''; $('newPassword').value=''; $('confirmPassword').value=''; $('passwordDialog').showModal(); });
   $('passwordForm').addEventListener('submit', changePassword);
   $('projectSelect').addEventListener('change', changeProject);
-  $('newProjectBtn').addEventListener('click', () => { $('projectForm').reset(); $('projectDialog').showModal(); });
-  $('homeNewProjectBtn').addEventListener('click', () => { $('projectForm').reset(); $('projectDialog').showModal(); });
-  $('projectForm').addEventListener('submit', createProject);
+  $('newProjectBtn').addEventListener('click', openNewProjectDialog);
+  $('homeNewProjectBtn').addEventListener('click', openNewProjectDialog);
+  $('projectForm').addEventListener('submit', saveProject);
   ['search','statusFilter','priorityFilter','ambitoFilter','ownerFilter'].forEach(id => $(id).addEventListener(id === 'search' ? 'input' : 'change', applyFilters));
   $('clearFilters').addEventListener('click', () => { ['search','statusFilter','priorityFilter','ambitoFilter','ownerFilter'].forEach(id => $(id).value=''); applyFilters(); });
   document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => $(btn.dataset.close).close()));
@@ -463,7 +478,8 @@ function applyRoleUI() {
   $('manageUsersBtn').classList.toggle('hidden', !isAdmin());
   $('newProjectBtn').classList.toggle('hidden', !isAdmin());
   $('importLabel').classList.toggle('hidden', !isAdmin());
-  $('accessOverview').classList.toggle('hidden', !isAdmin());
+  $('accessOverview').classList.add('hidden');
+  $('homeUsersBtn').classList.toggle('hidden', !isAdmin());
   $('homeNewProjectBtn').classList.toggle('hidden', !isAdmin());
   const homeRole = profile.role === 'admin' ? 'Admin · Interno' : profile.role === 'editor' ? 'Editor · Esterno' : 'Viewer · Sola lettura';
   $('homeRoleBadge').textContent = homeRole;
@@ -508,9 +524,10 @@ async function renderProjectHome() {
     return;
   }
 
-  // I conteggi rispettano automaticamente le policy RLS.
+  // Conteggi aggregati. Per "Risorse" contiamo i nominativi unici presenti negli Owner ARPA/BIP.
+  // In Home viene mostrato solo il totale, non l'elenco delle persone.
   let activityRows = [];
-  const countRes = await sb.from('activities').select('project_id,Stato,Priorità');
+  const countRes = await sb.from('activities').select('project_id,Stato,Priorità,"Owner ARPA","Owner BIP"');
   if (!countRes.error) activityRows = countRes.data || [];
 
   const lastId = localStorage.getItem('team_tracker_project_id');
@@ -523,21 +540,42 @@ async function renderProjectHome() {
     const high = own.filter(r => String(r.Priorità||'').trim().toLowerCase() === 'alta' &&
       !['terminata','chiusa','completata','conclusa'].includes(String(r.Stato||'').trim().toLowerCase())).length;
 
-    return `<article class="card project-home-card ${lastId===p.project_id?'last-opened':''}" data-open-project="${esc(p.project_id)}">
-      <div class="project-code">${esc(p.project_code)}</div>
-      <h3>${esc(p.project_name)}</h3>
-      <p>${esc(p.description || 'Cruscotto operativo del progetto.')}</p>
-      <div class="project-home-stats">
-        <div class="project-home-stat"><b>${total}</b><span>Attività</span></div>
-        <div class="project-home-stat"><b>${open}</b><span>Aperte</span></div>
-        <div class="project-home-stat"><b>${high}</b><span>Priorità alte</span></div>
+    const resources = new Set();
+    own.forEach(r => {
+      [r['Owner ARPA'], r['Owner BIP']].forEach(v => {
+        const name = String(v || '').trim();
+        if (name) resources.add(name.toLocaleLowerCase('it'));
+      });
+    });
+
+    return `<article class="card project-home-card ${lastId===p.project_id?'last-opened':''}">
+      <div class="project-card-main" data-open-project="${esc(p.project_id)}">
+        <div class="project-code">${esc(p.project_code)}</div>
+        <h3>${esc(p.project_name)}</h3>
+        <p>${esc(p.description || 'Cruscotto operativo del progetto.')}</p>
+        <div class="project-home-stats">
+          <div class="project-home-stat"><b>${total}</b><span>Attività</span></div>
+          <div class="project-home-stat"><b>${open}</b><span>Aperte</span></div>
+          <div class="project-home-stat"><b>${high}</b><span>Priorità alte</span></div>
+        </div>
+        <div class="project-resource-total"><span>Risorse totali del progetto</span><b>${resources.size}</b></div>
+        <div class="project-card-arrow">Apri progetto →</div>
       </div>
-      <div class="project-card-arrow">Apri progetto →</div>
+      ${isAdmin() ? `<div class="project-card-actions">
+        <button class="btn" type="button" data-edit-project="${esc(p.project_id)}">✎ Modifica</button>
+        <button class="btn danger-soft" type="button" data-delete-project="${esc(p.project_id)}">Elimina</button>
+      </div>` : ''}
     </article>`;
   }).join('');
 
   document.querySelectorAll('[data-open-project]').forEach(card => {
     card.addEventListener('click', () => openProject(card.dataset.openProject));
+  });
+  document.querySelectorAll('[data-edit-project]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); openEditProjectDialog(btn.dataset.editProject); });
+  });
+  document.querySelectorAll('[data-delete-project]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); deleteProject(btn.dataset.deleteProject); });
   });
 }
 
@@ -597,43 +635,124 @@ async function changeProject() {
   await openProject(projectId);
 }
 
-async function createProject(e) {
+function openNewProjectDialog() {
+  if (!isAdmin()) return;
+  editingProjectId = null;
+  $('projectForm').reset();
+  $('projectDialogTitle').textContent = 'Nuovo progetto';
+  $('projectDialogHelp').textContent = 'Il progetto sarà disponibile agli Admin Interni. Gli Editor Esterni vanno assegnati dal pulsante Utenti.';
+  $('projectSubmitBtn').textContent = 'Crea progetto';
+  $('projectDialog').showModal();
+}
+
+function openEditProjectDialog(projectId) {
+  if (!isAdmin()) return;
+  const p = projects.find(x => x.project_id === projectId);
+  if (!p) return;
+  editingProjectId = projectId;
+  $('projectCode').value = p.project_code || '';
+  $('projectName').value = p.project_name || '';
+  $('projectDescription').value = p.description || '';
+  $('projectDialogTitle').textContent = 'Modifica progetto';
+  $('projectDialogHelp').textContent = 'Aggiorna codice, nome o descrizione del progetto. Le attività già presenti restano collegate.';
+  $('projectSubmitBtn').textContent = 'Salva modifiche';
+  $('projectDialog').showModal();
+}
+
+async function saveProject(e) {
   e.preventDefault();
   if (!isAdmin()) return;
   const code = $('projectCode').value.trim().toUpperCase();
   const name = $('projectName').value.trim();
   const description = $('projectDescription').value.trim() || null;
-  const submit = e.submitter;
-  setBusy(submit, true, 'Creo…');
-  const { data, error } = await sb.from('projects')
-    .insert({ project_code:code, project_name:name, description, created_by:session.user.id })
-    .select('project_id,project_code,project_name,description,active,created_at')
-    .single();
+  const submit = e.submitter || $('projectSubmitBtn');
+
+  if (!code || !name) return;
+  setBusy(submit, true, editingProjectId ? 'Salvo…' : 'Creo…');
+
+  let data, error;
+  if (editingProjectId) {
+    ({ data, error } = await sb.from('projects')
+      .update({ project_code:code, project_name:name, description, updated_at:new Date().toISOString() })
+      .eq('project_id', editingProjectId)
+      .select('project_id,project_code,project_name,description,active,created_at')
+      .single());
+  } else {
+    ({ data, error } = await sb.from('projects')
+      .insert({ project_code:code, project_name:name, description, created_by:session.user.id })
+      .select('project_id,project_code,project_name,description,active,created_at')
+      .single());
+  }
+
   setBusy(submit, false);
-  if (error) { toast('Creazione progetto non riuscita: ' + error.message, 'error'); return; }
+  if (error) {
+    toast((editingProjectId ? 'Modifica' : 'Creazione') + ' progetto non riuscita: ' + error.message, 'error');
+    return;
+  }
+
+  const savedId = data.project_id;
+  const wasEdit = Boolean(editingProjectId);
+  editingProjectId = null;
   $('projectDialog').close();
-  toast('Progetto creato.');
-  await loadProjects(data.project_id);
+  toast(wasEdit ? 'Progetto aggiornato.' : 'Progetto creato.');
+  await loadProjects(savedId);
   if (isAdmin()) await loadAccessOverview();
   await renderProjectHome();
-  await openProject(data.project_id);
+  if (!wasEdit) await openProject(savedId);
+}
+
+async function deleteProject(projectId) {
+  if (!isAdmin()) return;
+  const p = projects.find(x => x.project_id === projectId);
+  if (!p) return;
+
+  const ok = confirm(
+    `Eliminare il progetto "${p.project_code} · ${p.project_name}" dalla dashboard?\n\n` +
+    `Il progetto verrà disattivato e non sarà più visibile. Attività e storico resteranno conservati nel database.`
+  );
+  if (!ok) return;
+
+  const { error } = await sb.from('projects')
+    .update({ active:false, updated_at:new Date().toISOString() })
+    .eq('project_id', projectId);
+
+  if (error) {
+    toast('Eliminazione progetto non riuscita: ' + error.message, 'error');
+    return;
+  }
+
+  if (localStorage.getItem('team_tracker_project_id') === projectId) {
+    localStorage.removeItem('team_tracker_project_id');
+  }
+  if (currentProject?.project_id === projectId) currentProject = null;
+
+  toast('Progetto eliminato dalla dashboard. I dati sono stati conservati.');
+  await loadProjects();
+  if (isAdmin()) await loadAccessOverview();
+  await renderProjectHome();
+  showProjectHome();
+}
+
+async function openUsersDialog() {
+  if (!isAdmin()) return;
+  await loadAccessOverview();
+  $('usersDialog').showModal();
 }
 
 async function loadAccessOverview() {
   if (!isAdmin()) return;
-  $('accessOverview').classList.remove('hidden');
-  $('accessOverviewBody').innerHTML = '<div class="muted">Caricamento accessi…</div>';
+  $('usersList').innerHTML = '<div class="muted">Caricamento utenti…</div>';
 
   const [usersRes, membersRes] = await Promise.all([
     sb.from('profiles').select('user_id,email,display_name,role,created_at').order('email'),
     sb.from('project_members').select('project_id,user_id')
   ]);
   if (usersRes.error) {
-    $('accessOverviewBody').innerHTML = `<div class="form-error">${esc(usersRes.error.message)}</div>`;
+    $('usersList').innerHTML = `<div class="form-error">${esc(usersRes.error.message)}</div>`;
     return;
   }
   if (membersRes.error) {
-    $('accessOverviewBody').innerHTML = `<div class="form-error">${esc(membersRes.error.message)}</div>`;
+    $('usersList').innerHTML = `<div class="form-error">${esc(membersRes.error.message)}</div>`;
     return;
   }
 
@@ -670,10 +789,15 @@ async function loadAccessOverview() {
     </tr>`;
   }).join('');
 
-  $('accessOverviewBody').innerHTML = `<div class="access-table-wrap"><table class="access-table">
-    <thead><tr><th>Account</th><th>Ruolo</th><th>Tipologia</th><th>Progetti abilitati</th></tr></thead>
-    <tbody>${rowsHtml}</tbody>
-  </table></div>`;
+  $('usersList').innerHTML = `<div class="access-summary" style="margin-bottom:12px">
+      <span class="role-chip admin">${admins} Admin Interni</span>
+      <span class="role-chip editor">${editors} Editor Esterni</span>
+      <span class="role-chip viewer">${viewers} Viewer</span>
+    </div>
+    <div class="access-table-wrap"><table class="access-table">
+      <thead><tr><th>Account</th><th>Ruolo</th><th>Tipologia</th><th>Progetti abilitati</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table></div>`;
 
   document.querySelectorAll('[data-role-user]').forEach(sel => sel.addEventListener('change', () => changeRole(sel.dataset.roleUser, sel.value, sel)));
   document.querySelectorAll('[data-project-user]').forEach(cb => cb.addEventListener('change', () => saveUserProjects(cb.dataset.projectUser)));
@@ -686,6 +810,7 @@ async function saveUserProjects(userId) {
   if (error) { toast('Assegnazione progetti non aggiornata: ' + error.message, 'error'); await loadAccessOverview(); return; }
   toast('Progetti assegnati aggiornati.');
   await loadAccessOverview();
+  await renderProjectHome();
 }
 
 
