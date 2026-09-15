@@ -31,6 +31,30 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
 .toast{position:fixed;right:18px;bottom:18px;z-index:300;background:#152235;color:#fff;padding:11px 14px;border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.2);max-width:360px}.toast.error{background:#8f1d15}.toast.success{background:#14633f}
 @media(max-width:1180px){.kpis{grid-template-columns:repeat(3,1fr)}.grid.two{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr 1fr}.toolbar .search{grid-column:1/-1}}@media(max-width:720px){.container{padding:14px}.kpis{grid-template-columns:1fr 1fr}.toolbar{grid-template-columns:1fr}.toolbar .search{grid-column:auto}.chart-flex{align-items:flex-start;flex-direction:column}.modal-body{grid-template-columns:1fr}.span2{grid-column:auto}.user-row{grid-template-columns:1fr}.topbar-inner{padding:10px 14px}}
 
+
+.project-switcher{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.project-switcher label{font-size:12px;font-weight:800;color:#475467}
+.project-select{min-width:240px}
+.access-card{margin-bottom:18px;padding:18px}
+.access-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+.access-head h3{margin:0 0 4px}.access-summary{display:flex;gap:8px;flex-wrap:wrap}
+.role-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;border:1px solid var(--line);background:#fff}
+.role-chip.admin{background:#ecfdf3;color:#14633f;border-color:#b7e4c7}
+.role-chip.editor{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.role-chip.viewer{background:#f8fafc;color:#475467}
+.access-table-wrap{overflow:auto}
+.access-table{width:100%;border-collapse:collapse;min-width:760px}
+.access-table th,.access-table td{padding:10px;border-bottom:1px solid #edf1f5;text-align:left;vertical-align:middle;font-size:13px}
+.access-table th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#667085}
+.project-checks{display:flex;gap:7px;flex-wrap:wrap}
+.project-check{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px}
+.project-check input{margin:0}
+.account-note{font-size:12px;color:var(--muted);margin-top:8px}
+.project-empty{padding:18px;border:1px dashed var(--line);border-radius:12px;background:#fafafa;color:#667085}
+.role-type{font-weight:800}
+.role-type.internal{color:#14633f}.role-type.external{color:#1d4ed8}.role-type.readonly{color:#667085}
+@media(max-width:760px){.project-select{min-width:180px;width:100%}.project-switcher{width:100%}.access-card{padding:14px}}
+
 </style>
 </head>
 <body>
@@ -42,8 +66,8 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
   <section id="loginView" class="login-shell">
     <div class="login-card">
       <div class="logo large">AT</div>
-      <h1>ARPA Activity Tracker</h1>
-      <p>Accesso riservato al gruppo di lavoro.</p>
+      <h1>Team Activity Tracker</h1>
+      <p>Dashboard multi-progetto riservata al gruppo di lavoro.</p>
       <form id="loginForm" class="stack">
         <label>Email<input id="loginEmail" type="email" autocomplete="username" required /></label>
         <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
@@ -59,7 +83,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
       <div class="topbar-inner">
         <div class="brand">
           <div class="logo">AT</div>
-          <div><h1>ARPA Activity Tracker</h1><small>Dashboard multiutente ARPA / BIP</small></div>
+          <div><h1>Team Activity Tracker</h1><small>Dashboard multi-progetto · Admin Interni / Editor Esterni</small></div>
         </div>
         <div class="top-actions">
           <span id="liveBadge" class="live-badge">● Live</span>
@@ -74,8 +98,13 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
     <main class="container">
       <section class="hero">
         <div>
-          <h2>Cruscotto operativo</h2>
-          <p>Attività, priorità, owner, scadenze e storico in tempo reale.</p>
+          <h2 id="projectHeading">Cruscotto operativo</h2>
+          <p id="projectSubtitle">Seleziona il progetto da monitorare.</p>
+        </div>
+        <div class="project-switcher">
+          <label for="projectSelect">Progetto</label>
+          <select id="projectSelect" class="field project-select"></select>
+          <button id="newProjectBtn" class="btn hidden">＋ Progetto</button>
         </div>
         <div class="hero-actions">
           <button id="refreshBtn" class="btn">↻ Aggiorna</button>
@@ -84,6 +113,18 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
           <button id="exportBtn" class="btn">↓ Esporta CSV</button>
           <button id="addBtn" class="btn primary hidden">＋ Nuova attività</button>
         </div>
+      </section>
+
+      <section id="accessOverview" class="card access-card hidden">
+        <div class="access-head">
+          <div>
+            <h3>Accessi alla dashboard</h3>
+            <div class="muted">Account abilitati e ruoli. <strong>Admin = Interno</strong>; <strong>Editor = Esterno</strong>; Viewer = sola lettura.</div>
+          </div>
+          <div id="accessSummary" class="access-summary"></div>
+        </div>
+        <div id="accessOverviewBody"></div>
+        <div class="account-note">Per sicurezza, l’elenco completo degli account e la modifica dei ruoli sono visibili solo agli Admin Interni. Gli Editor Esterni possono operare esclusivamente sui progetti a cui sono assegnati.</div>
       </section>
 
       <section class="kpis">
@@ -132,7 +173,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </div>
       </section>
 
-      <footer class="footer">ARPA Activity Tracker V2 · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
+      <footer class="footer">Team Activity Tracker V4 · multi-progetto · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
     </main>
   </div>
 
@@ -157,10 +198,22 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
   <dialog id="usersDialog">
     <div class="modal-head"><div><h3>Gestione utenti</h3><small class="muted">Gli account Auth devono essere creati prima nel pannello Supabase.</small></div><button class="close" type="button" data-close="usersDialog">×</button></div>
     <div class="users-body">
-      <div class="info-box">Da qui puoi cambiare il ruolo di utenti già presenti: <strong>Viewer</strong> visualizza, <strong>Editor</strong> inserisce/modifica, <strong>Admin</strong> gestisce tutto.</div>
+      <div class="info-box">Da qui puoi cambiare il ruolo di utenti già presenti: <strong>Viewer</strong> visualizza, <strong>Editor · Esterno</strong> inserisce/modifica i progetti assegnati, <strong>Admin · Interno</strong> gestisce tutto.</div>
       <div id="usersList"></div>
     </div>
     <div class="modal-foot"><button class="btn" type="button" data-close="usersDialog">Chiudi</button></div>
+  </dialog>
+
+  <dialog id="projectDialog">
+    <form id="projectForm" method="dialog">
+      <div class="modal-head"><div><h3>Nuovo progetto</h3><small class="muted">Il progetto sarà disponibile agli Admin Interni. Gli Editor Esterni vanno assegnati dalla sezione Accessi.</small></div><button class="close" type="button" data-close="projectDialog">×</button></div>
+      <div class="modal-body">
+        <label>Codice progetto<input id="projectCode" class="field" maxlength="30" placeholder="es. ARPA, FESR, POC" required /></label>
+        <label>Nome progetto<input id="projectName" class="field" maxlength="120" placeholder="es. ARPA Sicilia" required /></label>
+        <label class="span2">Descrizione<textarea id="projectDescription" class="field" rows="4" placeholder="Descrizione sintetica del progetto"></textarea></label>
+      </div>
+      <div class="modal-foot"><button class="btn" type="button" data-close="projectDialog">Annulla</button><button class="btn primary" type="submit">Crea progetto</button></div>
+    </form>
   </dialog>
 
   <dialog id="passwordDialog">
@@ -190,7 +243,7 @@ const COLS = [
   'ID','Ambito','Descrizione attività','Riferimenti attività','Stato','Priorità',
   'Owner ARPA','Owner BIP','Data apertura','Data chiusura','Scadenza','Note aggiuntive / Storico'
 ];
-const INTERNAL_KEYS = new Set(['row_id','created_at','updated_at','created_by','updated_by']);
+const INTERNAL_KEYS = new Set(['row_id','project_id','created_at','updated_at','created_by','updated_by']);
 const STATUS_COLORS = {
   'Da iniziare':'#d97706','In corso':'#2563eb','In attesa':'#7c3aed','Bloccata':'#dc2626','Terminata':'#16a34a'
 };
@@ -204,6 +257,10 @@ let filtered = [];
 let editingRow = null;
 let realtimeChannel = null;
 let realtimeTimer = null;
+let projects = [];
+let currentProject = null;
+let accessUsers = [];
+let projectMemberships = [];
 
 const $ = (id) => document.getElementById(id);
 const esc = (v='') => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -290,9 +347,12 @@ function wireEvents() {
   $('csvInput').addEventListener('change', importCSV);
   $('activityForm').addEventListener('submit', saveActivity);
   $('deleteActivityBtn').addEventListener('click', deleteActivity);
-  $('manageUsersBtn').addEventListener('click', openUsers);
+  $('manageUsersBtn').addEventListener('click', () => $('accessOverview').scrollIntoView({behavior:'smooth',block:'start'}));
   $('changePasswordBtn').addEventListener('click', () => { $('passwordError').textContent=''; $('newPassword').value=''; $('confirmPassword').value=''; $('passwordDialog').showModal(); });
   $('passwordForm').addEventListener('submit', changePassword);
+  $('projectSelect').addEventListener('change', changeProject);
+  $('newProjectBtn').addEventListener('click', () => { $('projectForm').reset(); $('projectDialog').showModal(); });
+  $('projectForm').addEventListener('submit', createProject);
   ['search','statusFilter','priorityFilter','ambitoFilter','ownerFilter'].forEach(id => $(id).addEventListener(id === 'search' ? 'input' : 'change', applyFilters));
   $('clearFilters').addEventListener('click', () => { ['search','statusFilter','priorityFilter','ambitoFilter','ownerFilter'].forEach(id => $(id).value=''); applyFilters(); });
   document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => $(btn.dataset.close).close()));
@@ -321,6 +381,8 @@ async function enterApp() {
   try {
     await loadProfile();
     applyRoleUI();
+    await loadProjects();
+    if (isAdmin()) await loadAccessOverview();
     await loadActivities();
     subscribeRealtime();
   } catch (err) {
@@ -337,17 +399,173 @@ async function loadProfile() {
 }
 
 function applyRoleUI() {
-  const roleLabel = {viewer:'Viewer',editor:'Editor',admin:'Admin'}[profile.role] || profile.role;
+  const roleLabel = profile.role === 'admin' ? 'Admin · Interno' : profile.role === 'editor' ? 'Editor · Esterno' : 'Viewer · Sola lettura';
   $('userBadge').textContent = `${profile.display_name || profile.email} · ${roleLabel}`;
   $('addBtn').classList.toggle('hidden', !isEditor());
   $('manageUsersBtn').classList.toggle('hidden', !isAdmin());
+  $('newProjectBtn').classList.toggle('hidden', !isAdmin());
   $('importLabel').classList.toggle('hidden', !isAdmin());
-  $('roleHelp').textContent = isAdmin() ? 'Admin: modifica, elimina, importa e gestisce i ruoli' : isEditor() ? 'Editor: inserisce e modifica attività' : 'Viewer: sola consultazione';
+  $('accessOverview').classList.toggle('hidden', !isAdmin());
+  $('roleHelp').textContent = isAdmin()
+    ? 'Admin Interno: tutti i progetti, ruoli, import ed eliminazione'
+    : isEditor()
+      ? 'Editor Esterno: inserisce e modifica solo i progetti assegnati'
+      : 'Viewer: sola consultazione dei progetti assegnati';
 }
 
+
+function rolePresentation(role) {
+  if (role === 'admin') return { label:'Admin', type:'Interno', cls:'internal' };
+  if (role === 'editor') return { label:'Editor', type:'Esterno', cls:'external' };
+  return { label:'Viewer', type:'Sola lettura', cls:'readonly' };
+}
+
+async function loadProjects(preferredProjectId = null) {
+  const { data, error } = await sb.from('projects')
+    .select('project_id,project_code,project_name,description,active,created_at')
+    .eq('active', true)
+    .order('project_name');
+  if (error) throw new Error('Impossibile caricare i progetti: ' + error.message);
+  projects = data || [];
+
+  const stored = preferredProjectId || localStorage.getItem('team_tracker_project_id');
+  currentProject = projects.find(p => p.project_id === stored) || projects[0] || null;
+
+  $('projectSelect').innerHTML = projects.length
+    ? projects.map(p => `<option value="${esc(p.project_id)}" ${currentProject?.project_id===p.project_id?'selected':''}>${esc(p.project_code)} · ${esc(p.project_name)}</option>`).join('')
+    : '<option value="">Nessun progetto assegnato</option>';
+  $('projectSelect').disabled = projects.length === 0;
+  updateProjectHeader();
+
+  if (!currentProject) {
+    rows = []; filtered = []; refreshAll();
+    $('accessOverviewBody').innerHTML = isAdmin()
+      ? '<div class="project-empty">Nessun progetto presente. Crea il primo progetto con il pulsante <strong>＋ Progetto</strong>.</div>'
+      : '<div class="project-empty">Il tuo account non è ancora assegnato a nessun progetto. Contatta un Admin Interno.</div>';
+  }
+}
+
+function updateProjectHeader() {
+  if (!currentProject) {
+    $('projectHeading').textContent = 'Cruscotto operativo';
+    $('projectSubtitle').textContent = 'Nessun progetto disponibile per questo account.';
+    return;
+  }
+  $('projectHeading').textContent = `${currentProject.project_code} · ${currentProject.project_name}`;
+  $('projectSubtitle').textContent = currentProject.description || 'Attività, priorità, owner, scadenze e storico in tempo reale.';
+}
+
+async function changeProject() {
+  currentProject = projects.find(p => p.project_id === $('projectSelect').value) || null;
+  if (currentProject) localStorage.setItem('team_tracker_project_id', currentProject.project_id);
+  updateProjectHeader();
+  await loadActivities();
+  subscribeRealtime();
+}
+
+async function createProject(e) {
+  e.preventDefault();
+  if (!isAdmin()) return;
+  const code = $('projectCode').value.trim().toUpperCase();
+  const name = $('projectName').value.trim();
+  const description = $('projectDescription').value.trim() || null;
+  const submit = e.submitter;
+  setBusy(submit, true, 'Creo…');
+  const { data, error } = await sb.from('projects')
+    .insert({ project_code:code, project_name:name, description, created_by:session.user.id })
+    .select('project_id,project_code,project_name,description,active,created_at')
+    .single();
+  setBusy(submit, false);
+  if (error) { toast('Creazione progetto non riuscita: ' + error.message, 'error'); return; }
+  $('projectDialog').close();
+  toast('Progetto creato.');
+  await loadProjects(data.project_id);
+  await loadAccessOverview();
+  await loadActivities();
+  subscribeRealtime();
+}
+
+async function loadAccessOverview() {
+  if (!isAdmin()) return;
+  $('accessOverview').classList.remove('hidden');
+  $('accessOverviewBody').innerHTML = '<div class="muted">Caricamento accessi…</div>';
+
+  const [usersRes, membersRes] = await Promise.all([
+    sb.from('profiles').select('user_id,email,display_name,role,created_at').order('email'),
+    sb.from('project_members').select('project_id,user_id')
+  ]);
+  if (usersRes.error) {
+    $('accessOverviewBody').innerHTML = `<div class="form-error">${esc(usersRes.error.message)}</div>`;
+    return;
+  }
+  if (membersRes.error) {
+    $('accessOverviewBody').innerHTML = `<div class="form-error">${esc(membersRes.error.message)}</div>`;
+    return;
+  }
+
+  accessUsers = usersRes.data || [];
+  projectMemberships = membersRes.data || [];
+  const admins = accessUsers.filter(u => u.role === 'admin').length;
+  const editors = accessUsers.filter(u => u.role === 'editor').length;
+  const viewers = accessUsers.filter(u => u.role === 'viewer').length;
+  $('accessSummary').innerHTML = `
+    <span class="role-chip admin">${admins} Admin Interni</span>
+    <span class="role-chip editor">${editors} Editor Esterni</span>
+    <span class="role-chip viewer">${viewers} Viewer</span>`;
+
+  const rowsHtml = accessUsers.map(u => {
+    const p = rolePresentation(u.role);
+    const own = u.user_id === session.user.id;
+    const assigned = new Set(projectMemberships.filter(m => m.user_id === u.user_id).map(m => m.project_id));
+    const projectControls = u.role === 'admin'
+      ? '<span class="muted">Tutti i progetti</span>'
+      : `<div class="project-checks">${projects.map(pr => `
+          <label class="project-check">
+            <input type="checkbox" data-project-user="${esc(u.user_id)}" value="${esc(pr.project_id)}" ${assigned.has(pr.project_id)?'checked':''}>
+            ${esc(pr.project_code)}
+          </label>`).join('') || '<span class="muted">Nessun progetto</span>'}</div>`;
+    return `<tr>
+      <td><div class="user-email">${esc(u.email)}</div><div class="user-name">${esc(u.display_name||'')} ${own?'· Tu':''}</div></td>
+      <td><select class="field" data-role-user="${esc(u.user_id)}" ${own?'disabled':''}>
+        <option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer · Sola lettura</option>
+        <option value="editor" ${u.role==='editor'?'selected':''}>Editor · Esterno</option>
+        <option value="admin" ${u.role==='admin'?'selected':''}>Admin · Interno</option>
+      </select></td>
+      <td><span class="role-type ${p.cls}">${esc(p.type)}</span></td>
+      <td>${projectControls}</td>
+    </tr>`;
+  }).join('');
+
+  $('accessOverviewBody').innerHTML = `<div class="access-table-wrap"><table class="access-table">
+    <thead><tr><th>Account</th><th>Ruolo</th><th>Tipologia</th><th>Progetti abilitati</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table></div>`;
+
+  document.querySelectorAll('[data-role-user]').forEach(sel => sel.addEventListener('change', () => changeRole(sel.dataset.roleUser, sel.value, sel)));
+  document.querySelectorAll('[data-project-user]').forEach(cb => cb.addEventListener('change', () => saveUserProjects(cb.dataset.projectUser)));
+}
+
+async function saveUserProjects(userId) {
+  if (!isAdmin()) return;
+  const ids = [...document.querySelectorAll(`[data-project-user="${CSS.escape(userId)}"]:checked`)].map(x => x.value);
+  const { error } = await sb.rpc('set_user_projects', { target_user_id:userId, target_project_ids:ids });
+  if (error) { toast('Assegnazione progetti non aggiornata: ' + error.message, 'error'); await loadAccessOverview(); return; }
+  toast('Progetti assegnati aggiornati.');
+  await loadAccessOverview();
+}
+
+
 async function loadActivities() {
-  const btn = $('refreshBtn'); setBusy(btn, true, '↻ Aggiorno…');
-  const { data, error } = await sb.from('activities').select('*').order('ID', { ascending: true });
+  const btn = $('refreshBtn');
+  if (!currentProject) {
+    rows = []; filtered = []; refreshAll();
+    return;
+  }
+  setBusy(btn, true, '↻ Aggiorno…');
+  const { data, error } = await sb.from('activities')
+    .select('*')
+    .eq('project_id', currentProject.project_id)
+    .order('ID', { ascending: true });
   setBusy(btn, false);
   if (error) { toast('Impossibile caricare le attività: ' + error.message, 'error'); return; }
   rows = data || [];
@@ -357,8 +575,14 @@ async function loadActivities() {
 
 function subscribeRealtime() {
   if (realtimeChannel) sb.removeChannel(realtimeChannel);
-  realtimeChannel = sb.channel('arpa-activities-live')
-    .on('postgres_changes', { event:'*', schema:'public', table:'activities' }, () => {
+  if (!currentProject) return;
+  realtimeChannel = sb.channel(`activities-${currentProject.project_id}`)
+    .on('postgres_changes', {
+      event:'*',
+      schema:'public',
+      table:'activities',
+      filter:`project_id=eq.${currentProject.project_id}`
+    }, () => {
       clearTimeout(realtimeTimer);
       realtimeTimer = setTimeout(loadActivities, 250);
     })
@@ -469,7 +693,7 @@ function fieldHtml(col, value, isNew) {
 }
 
 function openActivityDialog(row) {
-  if (!isEditor()) return;
+  if (!isEditor() || !currentProject) return;
   editingRow = row || null;
   $('activityModalTitle').textContent = row ? `Modifica attività #${row['ID']}` : 'Nuova attività';
   $('activityModalSub').textContent = row ? `Ultimo aggiornamento: ${row.updated_at ? new Date(row.updated_at).toLocaleString('it-IT') : '—'}` : 'L’ID sarà assegnato automaticamente dal database.';
@@ -481,9 +705,9 @@ function openActivityDialog(row) {
 
 async function saveActivity(e) {
   e.preventDefault();
-  if (!isEditor()) return;
+  if (!isEditor() || !currentProject) return;
   const submit = e.submitter; setBusy(submit,true,'Salvo…');
-  const fd = new FormData(e.target); const payload={};
+  const fd = new FormData(e.target); const payload={ project_id: currentProject.project_id };
   COLS.forEach(c => { const v=normalizeValue(fd.get(c)); if (c==='ID') { if (v) payload[c]=Number(v); } else payload[c]=v || null; });
   let result;
   if (editingRow) result = await sb.from('activities').update(payload).eq('row_id', editingRow.row_id).select().single();
@@ -529,20 +753,17 @@ function renderHistoryItem(item) {
 
 async function openUsers() {
   if (!isAdmin()) return;
-  $('usersList').innerHTML='<div class="muted">Caricamento…</div>'; $('usersDialog').showModal();
-  const { data,error }=await sb.from('profiles').select('user_id,email,display_name,role,created_at').order('email');
-  if(error){$('usersList').innerHTML=`<div class="form-error">${esc(error.message)}</div>`;return;}
-  $('usersList').innerHTML=(data||[]).map(u=>`<div class="user-row"><div><div class="user-email">${esc(u.email)}</div><div class="user-name">${esc(u.display_name||'')} ${u.user_id===session.user.id?'· Tu':''}</div></div><select class="field" data-role-user="${esc(u.user_id)}" ${u.user_id===session.user.id?'disabled':''}><option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer</option><option value="editor" ${u.role==='editor'?'selected':''}>Editor</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select><span class="badge s-${u.role==='admin'?'terminata':u.role==='editor'?'in-corso':'in-attesa'}">${esc(u.role)}</span></div>`).join('');
-  document.querySelectorAll('[data-role-user]').forEach(sel=>sel.addEventListener('change',()=>changeRole(sel.dataset.roleUser,sel.value,sel)));
+  await loadAccessOverview();
+  $('accessOverview').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function changeRole(userId, role, selectEl) {
-  const previous=[...selectEl.options].find(o=>o.defaultSelected)?.value;
-  selectEl.disabled=true;
-  const { error }=await sb.rpc('set_user_role',{target_user_id:userId,new_role:role});
-  selectEl.disabled=false;
-  if(error){toast('Ruolo non aggiornato: '+error.message,'error'); await openUsers(); return;}
-  toast('Ruolo aggiornato.'); await openUsers();
+  selectEl.disabled = true;
+  const { error } = await sb.rpc('set_user_role', { target_user_id:userId, new_role:role });
+  selectEl.disabled = false;
+  if (error) { toast('Ruolo non aggiornato: ' + error.message, 'error'); await loadAccessOverview(); return; }
+  toast('Ruolo aggiornato.');
+  await loadAccessOverview();
 }
 
 async function changePassword(e) {
@@ -583,18 +804,99 @@ function normalizeImportedRow(raw) {
 }
 
 async function importCSV(e) {
-  const file=e.target.files?.[0]; e.target.value=''; if(!file||!isAdmin())return;
-  const text=await file.text(); const parsed=parseCSV(text).map(normalizeImportedRow);
-  if(!parsed.length){toast('Il CSV non contiene righe importabili.','error');return;}
-  const required=['Ambito','Descrizione attività','Stato'];
-  if(!confirm(`Importare ${parsed.length} attività? Le righe con lo stesso ID verranno aggiornate; le altre verranno aggiunte.`))return;
-  const withId=parsed.filter(r=>Number.isFinite(r['ID'])); const withoutId=parsed.filter(r=>!Number.isFinite(r['ID']));
-  const batch=async(arr,mode)=>{for(let i=0;i<arr.length;i+=200){const chunk=arr.slice(i,i+200);const res=mode==='upsert'?await sb.from('activities').upsert(chunk,{onConflict:'ID'}):await sb.from('activities').insert(chunk);if(res.error)throw res.error;}};
-  try{
-    await batch(withId,'upsert'); await batch(withoutId,'insert');
-    const sync=await sb.rpc('sync_activity_id_sequence'); if(sync.error)console.warn(sync.error);
-    toast(`Import completato: ${parsed.length} attività.`); await loadActivities();
-  }catch(err){toast('Import non riuscito: '+err.message,'error');}
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file || !isAdmin() || !currentProject) return;
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    let text;
+    // Supporto UTF-16 LE / BE, frequente nei CSV risalvati da Excel.
+    if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+      text = new TextDecoder('utf-16le').decode(buffer);
+    } else if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+      text = new TextDecoder('utf-16be').decode(buffer);
+    } else {
+      text = new TextDecoder('utf-8').decode(buffer);
+    }
+
+    text = text.replace(/^\uFEFF/, '').replace(/\u0000/g, '');
+
+    const parsedRaw = parseCSV(text);
+
+    if (!parsedRaw.length) {
+      toast(
+        `CSV letto ma senza righe dati. File: ${file.name}. Verifica che la prima riga contenga le intestazioni e che sotto siano presenti le attività.`,
+        'error'
+      );
+      return;
+    }
+
+    // Mappatura intestazioni tollerante a spazi/accenti/maiuscole.
+    const normalizeHeader = s => String(s ?? '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+    const canonical = Object.fromEntries(COLS.map(c => [normalizeHeader(c), c]));
+
+    const normalizedRaw = parsedRaw.map(raw => {
+      const fixed = {};
+      Object.entries(raw).forEach(([k, v]) => {
+        const mapped = canonical[normalizeHeader(k)] || k.trim();
+        fixed[mapped] = v;
+      });
+      return fixed;
+    });
+
+    const parsed = normalizedRaw
+      .map(normalizeImportedRow)
+      .filter(r =>
+        r['Ambito'] ||
+        r['Descrizione attività'] ||
+        r['Stato'] ||
+        Number.isFinite(r['ID'])
+      );
+
+    if (!parsed.length) {
+      const detected = Object.keys(parsedRaw[0] || {}).join(' | ');
+      toast(
+        `Nessuna riga riconosciuta. Intestazioni rilevate: ${detected || 'nessuna'}`,
+        'error'
+      );
+      return;
+    }
+
+    if (!confirm(
+      `Importare ${parsed.length} attività nel progetto ${currentProject?.project_code || ''}? Le righe con lo stesso ID nello stesso progetto verranno aggiornate; le altre verranno aggiunte.`
+    )) return;
+
+    const withId = parsed.filter(r => Number.isFinite(r['ID'])).map(r => ({...r, project_id: currentProject.project_id}));
+    const withoutId = parsed.filter(r => !Number.isFinite(r['ID'])).map(r => ({...r, project_id: currentProject.project_id}));
+
+    const batch = async (arr, mode) => {
+      for (let i = 0; i < arr.length; i += 200) {
+        const chunk = arr.slice(i, i + 200);
+        const res = mode === 'upsert'
+          ? await sb.from('activities').upsert(chunk, { onConflict: 'project_id,ID' })
+          : await sb.from('activities').insert(chunk);
+        if (res.error) throw res.error;
+      }
+    };
+
+    await batch(withId, 'upsert');
+    await batch(withoutId, 'insert');
+
+    toast(`Import completato nel progetto ${currentProject.project_code}: ${parsed.length} attività.`);
+    await loadActivities();
+
+  } catch (err) {
+    console.error(err);
+    toast('Import non riuscito: ' + (err?.message || String(err)), 'error');
+  }
 }
 
 function toCSV(data) {
@@ -604,7 +906,7 @@ function toCSV(data) {
 
 function exportCSV() {
   const blob=new Blob([toCSV([...rows])],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url;a.download=`TODO_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  a.href=url;a.download=`TODO_${currentProject?.project_code || 'PROGETTO'}_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 
 init();
