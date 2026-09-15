@@ -200,7 +200,6 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
           <button id="newProjectBtn" class="btn hidden">＋ Progetto</button>
         </div>
         <div class="hero-actions">
-          <button id="projectResourcesBtn" class="btn hidden">👤 Risorse</button>
           <button id="refreshBtn" class="btn">↻ Aggiorna</button>
           <label id="importLabel" class="btn hidden" for="csvInput">↑ Importa CSV</label>
           <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
@@ -241,7 +240,19 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         <button id="clearFilters" class="btn">Azzera filtri</button>
       </section>
 
-      <section class="card table-card">
+      
+        <section id="projectResourcesSection" class="card hidden" style="margin-bottom:14px">
+          <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div>
+              <h3 style="margin:0">Risorse del progetto</h3>
+              <p class="muted" style="margin:4px 0 0">Vista riservata agli Admin Interni. Elenco ricavato dagli Owner ARPA e Owner BIP.</p>
+            </div>
+            <button id="refreshProjectResourcesBtn" class="btn">↻ Aggiorna risorse</button>
+          </div>
+          <div id="projectResourcesInlineBody" style="margin-top:14px"></div>
+        </section>
+
+<section class="card table-card">
         <div class="table-headline">
           <div><strong id="rowsCount">0 attività</strong><span id="lastUpdated" class="muted"></span></div>
           <span id="roleHelp" class="role-help"></span>
@@ -255,7 +266,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </div>
       </section>
 
-      <footer class="footer">Team Activity Tracker V7 · multi-progetto · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
+      <footer class="footer">Team Activity Tracker V8 · multi-progetto · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
           </div>
     </main>
   </div>
@@ -448,7 +459,7 @@ function wireEvents() {
   $('loginForm').addEventListener('submit', login);
   $('logoutBtn').addEventListener('click', () => sb.auth.signOut());
   $('homeBtn').addEventListener('click', showProjectHome);
-  $('projectResourcesBtn').addEventListener('click', () => showProjectResources(currentProject?.project_id));
+  $('refreshProjectResourcesBtn')?.addEventListener('click', () => renderProjectResourcesInline(currentProject?.project_id));
   $('refreshBtn').addEventListener('click', loadActivities);
   $('addBtn').addEventListener('click', () => openActivityDialog(null));
   $('exportBtn').addEventListener('click', exportCSV);
@@ -516,7 +527,7 @@ function applyRoleUI() {
   $('userBadge').textContent = `${profile.display_name || profile.email} · ${roleLabel}`;
   $('addBtn').classList.toggle('hidden', !isEditor());
   $('manageUsersBtn').classList.toggle('hidden', !isAdmin());
-  $('projectResourcesBtn').classList.toggle('hidden', !isAdmin());
+  $('projectResourcesSection')?.classList.toggle('hidden', !isAdmin());
   $('newProjectBtn').classList.toggle('hidden', !isAdmin());
   $('importLabel').classList.toggle('hidden', !isAdmin());
   $('accessOverview').classList.add('hidden');
@@ -603,7 +614,6 @@ async function renderProjectHome() {
         <div class="project-card-arrow">Apri progetto →</div>
       </div>
       ${isAdmin() ? `<div class="project-card-actions">
-        <button class="btn" type="button" data-resources-project="${esc(p.project_id)}">👤 Risorse</button>
         <button class="btn" type="button" data-edit-project="${esc(p.project_id)}">✎ Modifica</button>
         <button class="btn danger-soft" type="button" data-delete-project="${esc(p.project_id)}">Elimina</button>
       </div>` : ''}
@@ -612,9 +622,6 @@ async function renderProjectHome() {
 
   document.querySelectorAll('[data-open-project]').forEach(card => {
     card.addEventListener('click', () => openProject(card.dataset.openProject));
-  });
-  document.querySelectorAll('[data-resources-project]').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); showProjectResources(btn.dataset.resourcesProject); });
   });
   document.querySelectorAll('[data-edit-project]').forEach(btn => {
     btn.addEventListener('click', (e) => { e.stopPropagation(); openEditProjectDialog(btn.dataset.editProject); });
@@ -637,6 +644,7 @@ async function openProject(projectId) {
   $('homeBtn').classList.remove('hidden');
 
   await loadActivities();
+  if (isAdmin()) await renderProjectResourcesInline(currentProject.project_id);
   subscribeRealtime();
 }
 
@@ -785,6 +793,104 @@ function splitResourceNames(value) {
     .map(x => x.trim())
     .filter(Boolean);
 }
+
+
+async function renderProjectResourcesInline(projectId) {
+  if (!isAdmin()) return;
+
+  const body = $('projectResourcesInlineBody');
+  if (!body) return;
+
+  const project = projects.find(p => p.project_id === projectId) || currentProject;
+  if (!project) {
+    body.innerHTML = '<div class="muted">Nessun progetto selezionato.</div>';
+    return;
+  }
+
+  body.innerHTML = '<div class="muted">Caricamento risorse…</div>';
+
+  let projectRows = [];
+  if (currentProject?.project_id === project.project_id && Array.isArray(rows)) {
+    projectRows = rows;
+  } else {
+    const { data, error } = await sb
+      .from('activities')
+      .select('row_id,Stato,"Descrizione attività","Owner ARPA","Owner BIP"')
+      .eq('project_id', project.project_id);
+
+    if (error) {
+      body.innerHTML = `<div class="form-error">${esc(error.message)}</div>`;
+      return;
+    }
+    projectRows = data || [];
+  }
+
+  const map = new Map();
+
+  const add = (name, origin, activity) => {
+    const clean = String(name || '').trim();
+    if (!clean) return;
+    const key = clean.toLocaleLowerCase('it');
+    if (!map.has(key)) {
+      map.set(key, { name: clean, origins: new Set(), activities: 0, open: 0 });
+    }
+    const item = map.get(key);
+    item.origins.add(origin);
+    item.activities += 1;
+    if (!['terminata','chiusa','completata','conclusa'].includes(String(activity?.Stato || '').trim().toLowerCase())) {
+      item.open += 1;
+    }
+  };
+
+  projectRows.forEach(r => {
+    splitResourceNames(r['Owner ARPA']).forEach(name => add(name, 'ARPA', r));
+    splitResourceNames(r['Owner BIP']).forEach(name => add(name, 'BIP', r));
+  });
+
+  const resources = [...map.values()].sort((a,b) =>
+    a.name.localeCompare(b.name, 'it', { sensitivity:'base' })
+  );
+
+  const arpaCount = resources.filter(x => x.origins.has('ARPA')).length;
+  const bipCount = resources.filter(x => x.origins.has('BIP')).length;
+
+  body.innerHTML = `
+    <div class="resources-summary">
+      <div class="mini"><b>${resources.length}</b><span>Risorse totali</span></div>
+      <div class="mini"><b>${arpaCount}</b><span>Owner ARPA</span></div>
+      <div class="mini"><b>${bipCount}</b><span>Owner BIP</span></div>
+    </div>
+    ${resources.length ? `
+      <div class="resources-table-wrap">
+        <table class="resources-table">
+          <thead>
+            <tr>
+              <th>Risorsa</th>
+              <th>Ambito</th>
+              <th>Attività assegnate</th>
+              <th>Aperte</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${resources.map(r => `
+              <tr>
+                <td class="resource-name">${esc(r.name)}</td>
+                <td>
+                  <div class="resource-origin">
+                    ${[...r.origins].sort().map(o => `<span class="resource-pill">${esc(o)}</span>`).join('')}
+                  </div>
+                </td>
+                <td>${r.activities}</td>
+                <td>${r.open}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>` :
+      '<div class="resource-empty">Non risultano ancora risorse valorizzate negli Owner del progetto.</div>'
+    }`;
+}
+
 
 async function showProjectResources(projectId) {
   if (!isAdmin()) {
