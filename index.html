@@ -95,6 +95,23 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
 .btn.danger-soft:hover{background:#fff0f0}
 .project-dialog-note{padding:9px 11px;border-radius:10px;background:#f8fafc;border:1px solid var(--line);font-size:12px;color:var(--muted);margin-top:4px}
 
+
+/* ===== V7 · Risorse di progetto (solo Admin Interni) ===== */
+.resources-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 14px}
+.resources-summary .mini{padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}
+.resources-summary .mini b{display:block;font-size:21px;margin-bottom:2px}
+.resources-summary .mini span{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase}
+.resources-table-wrap{overflow:auto;max-height:58vh;border:1px solid var(--line);border-radius:12px}
+.resources-table{width:100%;border-collapse:collapse;background:#fff}
+.resources-table th,.resources-table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.resources-table th{position:sticky;top:0;background:#f8fafc;z-index:1;font-size:11px;text-transform:uppercase;color:var(--muted)}
+.resources-table td{font-size:13px}
+.resource-name{font-weight:900;color:var(--ink)}
+.resource-origin{display:inline-flex;gap:5px;flex-wrap:wrap}
+.resource-pill{display:inline-flex;padding:3px 7px;border-radius:999px;border:1px solid var(--line);background:#f8fafc;font-size:10px;font-weight:900}
+.resource-empty{padding:26px;text-align:center;color:var(--muted)}
+@media(max-width:680px){.resources-summary{grid-template-columns:1fr}.resources-table th:nth-child(3),.resources-table td:nth-child(3){display:none}}
+
 </style>
 </head>
 <body>
@@ -183,6 +200,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
           <button id="newProjectBtn" class="btn hidden">＋ Progetto</button>
         </div>
         <div class="hero-actions">
+          <button id="projectResourcesBtn" class="btn hidden">👤 Risorse</button>
           <button id="refreshBtn" class="btn">↻ Aggiorna</button>
           <label id="importLabel" class="btn hidden" for="csvInput">↑ Importa CSV</label>
           <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
@@ -237,7 +255,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </div>
       </section>
 
-      <footer class="footer">Team Activity Tracker V4 · multi-progetto · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
+      <footer class="footer">Team Activity Tracker V7 · multi-progetto · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
           </div>
     </main>
   </div>
@@ -258,6 +276,27 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
     <div class="modal-head"><div><h3>Storico modifiche</h3><small id="historyTitle" class="muted"></small></div><button class="close" type="button" data-close="historyDialog">×</button></div>
     <div id="historyBody" class="history-body"></div>
     <div class="modal-foot"><button class="btn" type="button" data-close="historyDialog">Chiudi</button></div>
+  </dialog>
+
+
+  <dialog id="projectResourcesDialog">
+    <div class="modal-head">
+      <div>
+        <h3>Risorse del progetto</h3>
+        <small id="projectResourcesTitle" class="muted"></small>
+      </div>
+      <button class="close" type="button" data-close="projectResourcesDialog">×</button>
+    </div>
+    <div class="users-body">
+      <div class="info-box">
+        Elenco operativo ricavato dai campi <strong>Owner ARPA</strong> e <strong>Owner BIP</strong>.
+        Questa vista è disponibile esclusivamente agli <strong>Admin Interni</strong>.
+      </div>
+      <div id="projectResourcesBody"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" type="button" data-close="projectResourcesDialog">Chiudi</button>
+    </div>
   </dialog>
 
   <dialog id="usersDialog">
@@ -409,6 +448,7 @@ function wireEvents() {
   $('loginForm').addEventListener('submit', login);
   $('logoutBtn').addEventListener('click', () => sb.auth.signOut());
   $('homeBtn').addEventListener('click', showProjectHome);
+  $('projectResourcesBtn').addEventListener('click', () => showProjectResources(currentProject?.project_id));
   $('refreshBtn').addEventListener('click', loadActivities);
   $('addBtn').addEventListener('click', () => openActivityDialog(null));
   $('exportBtn').addEventListener('click', exportCSV);
@@ -476,6 +516,7 @@ function applyRoleUI() {
   $('userBadge').textContent = `${profile.display_name || profile.email} · ${roleLabel}`;
   $('addBtn').classList.toggle('hidden', !isEditor());
   $('manageUsersBtn').classList.toggle('hidden', !isAdmin());
+  $('projectResourcesBtn').classList.toggle('hidden', !isAdmin());
   $('newProjectBtn').classList.toggle('hidden', !isAdmin());
   $('importLabel').classList.toggle('hidden', !isAdmin());
   $('accessOverview').classList.add('hidden');
@@ -562,6 +603,7 @@ async function renderProjectHome() {
         <div class="project-card-arrow">Apri progetto →</div>
       </div>
       ${isAdmin() ? `<div class="project-card-actions">
+        <button class="btn" type="button" data-resources-project="${esc(p.project_id)}">👤 Risorse</button>
         <button class="btn" type="button" data-edit-project="${esc(p.project_id)}">✎ Modifica</button>
         <button class="btn danger-soft" type="button" data-delete-project="${esc(p.project_id)}">Elimina</button>
       </div>` : ''}
@@ -570,6 +612,9 @@ async function renderProjectHome() {
 
   document.querySelectorAll('[data-open-project]').forEach(card => {
     card.addEventListener('click', () => openProject(card.dataset.openProject));
+  });
+  document.querySelectorAll('[data-resources-project]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); showProjectResources(btn.dataset.resourcesProject); });
   });
   document.querySelectorAll('[data-edit-project]').forEach(btn => {
     btn.addEventListener('click', (e) => { e.stopPropagation(); openEditProjectDialog(btn.dataset.editProject); });
@@ -731,6 +776,122 @@ async function deleteProject(projectId) {
   if (isAdmin()) await loadAccessOverview();
   await renderProjectHome();
   showProjectHome();
+}
+
+
+function splitResourceNames(value) {
+  return String(value || '')
+    .split(/\s*(?:;|,|\n|\s\/\s)\s*/)
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+async function showProjectResources(projectId) {
+  if (!isAdmin()) {
+    toast('La vista Risorse è riservata agli Admin Interni.', 'error');
+    return;
+  }
+
+  const project = projects.find(p => p.project_id === projectId) || currentProject;
+  if (!project) return;
+
+  $('projectResourcesTitle').textContent = `${project.project_code} · ${project.project_name}`;
+  $('projectResourcesBody').innerHTML = '<div class="muted">Caricamento risorse…</div>';
+  $('projectResourcesDialog').showModal();
+
+  let projectRows = [];
+  if (currentProject?.project_id === project.project_id && Array.isArray(rows) && rows.length) {
+    projectRows = rows;
+  } else {
+    const { data, error } = await sb
+      .from('activities')
+      .select('row_id,Stato,"Descrizione attività","Owner ARPA","Owner BIP"')
+      .eq('project_id', project.project_id);
+
+    if (error) {
+      $('projectResourcesBody').innerHTML = `<div class="form-error">${esc(error.message)}</div>`;
+      return;
+    }
+    projectRows = data || [];
+  }
+
+  const map = new Map();
+
+  const add = (name, origin, activity) => {
+    const clean = String(name || '').trim();
+    if (!clean) return;
+    const key = clean.toLocaleLowerCase('it');
+    if (!map.has(key)) {
+      map.set(key, {
+        name: clean,
+        origins: new Set(),
+        activities: 0,
+        open: 0
+      });
+    }
+    const item = map.get(key);
+    item.origins.add(origin);
+    item.activities += 1;
+    if (!['terminata','chiusa','completata','conclusa'].includes(String(activity?.Stato || '').trim().toLowerCase())) {
+      item.open += 1;
+    }
+  };
+
+  projectRows.forEach(r => {
+    splitResourceNames(r['Owner ARPA']).forEach(name => add(name, 'ARPA', r));
+    splitResourceNames(r['Owner BIP']).forEach(name => add(name, 'BIP', r));
+  });
+
+  const resources = [...map.values()].sort((a,b) =>
+    a.name.localeCompare(b.name, 'it', { sensitivity:'base' })
+  );
+
+  const arpaCount = resources.filter(x => x.origins.has('ARPA')).length;
+  const bipCount = resources.filter(x => x.origins.has('BIP')).length;
+
+  if (!resources.length) {
+    $('projectResourcesBody').innerHTML = `
+      <div class="resources-summary">
+        <div class="mini"><b>0</b><span>Risorse totali</span></div>
+        <div class="mini"><b>0</b><span>Owner ARPA</span></div>
+        <div class="mini"><b>0</b><span>Owner BIP</span></div>
+      </div>
+      <div class="resource-empty">Non risultano ancora risorse valorizzate negli Owner del progetto.</div>`;
+    return;
+  }
+
+  $('projectResourcesBody').innerHTML = `
+    <div class="resources-summary">
+      <div class="mini"><b>${resources.length}</b><span>Risorse totali</span></div>
+      <div class="mini"><b>${arpaCount}</b><span>Owner ARPA</span></div>
+      <div class="mini"><b>${bipCount}</b><span>Owner BIP</span></div>
+    </div>
+    <div class="resources-table-wrap">
+      <table class="resources-table">
+        <thead>
+          <tr>
+            <th>Risorsa</th>
+            <th>Ambito</th>
+            <th>Attività assegnate</th>
+            <th>Aperte</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${resources.map(r => `
+            <tr>
+              <td class="resource-name">${esc(r.name)}</td>
+              <td>
+                <div class="resource-origin">
+                  ${[...r.origins].sort().map(o => `<span class="resource-pill">${esc(o)}</span>`).join('')}
+                </div>
+              </td>
+              <td>${r.activities}</td>
+              <td>${r.open}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 async function openUsersDialog() {
