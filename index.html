@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="ARPA Activity Tracker V2 - dashboard multiutente con Supabase" />
-  <title>ARPA | Activity Tracker V2</title>
+  <meta name="description" content="Team Activity Tracker - dashboard multiutente e multi-progetto con Supabase" />
+  <title>Team Activity Tracker | Multi-Progetto</title>
   <style>
 :root{
   --bg:#f3f6fa;--panel:#fff;--text:#152235;--muted:#66758a;--line:#dce4ee;
@@ -55,6 +55,32 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
 .role-type.internal{color:#14633f}.role-type.external{color:#1d4ed8}.role-type.readonly{color:#667085}
 @media(max-width:760px){.project-select{min-width:180px;width:100%}.project-switcher{width:100%}.access-card{padding:14px}}
 
+
+/* ===== V5 · Home progetti post-login ===== */
+.project-home{padding:8px 0 28px}
+.project-home-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:8px 0 20px}
+.project-home-hero h2{margin:0 0 5px;font-size:28px}
+.project-home-hero p{margin:0;color:var(--muted)}
+.home-role-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;font-weight:800;font-size:12px}
+.projects-home-grid{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:14px;margin-bottom:20px}
+.project-home-card{position:relative;padding:18px;min-height:205px;display:flex;flex-direction:column;gap:12px;transition:.18s ease;cursor:pointer}
+.project-home-card:hover{transform:translateY(-2px);border-color:#b7c8c3;box-shadow:0 14px 34px rgba(20,41,70,.11)}
+.project-home-card .project-code{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--brand)}
+.project-home-card h3{font-size:19px;margin:0}
+.project-home-card p{margin:0;color:var(--muted);min-height:40px}
+.project-home-card .project-card-arrow{margin-top:auto;font-weight:900;color:var(--brand)}
+.project-home-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:2px}
+.project-home-stat{padding:8px;border-radius:10px;background:#f8fafc;border:1px solid #edf1f5}
+.project-home-stat b{display:block;font-size:17px}
+.project-home-stat span{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase}
+.project-home-card.last-opened:before{content:"Ultimo aperto";position:absolute;right:14px;top:14px;background:var(--soft);color:var(--brand2);border:1px solid #cee7df;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:900}
+.home-empty{padding:28px;text-align:center;border:1px dashed var(--line);background:#fff;border-radius:16px;color:var(--muted)}
+.home-section-title{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:22px 0 10px}
+.home-section-title h3{margin:0;font-size:16px}.home-section-title p{margin:2px 0 0;color:var(--muted);font-size:12px}
+#homeBtn{font-weight:800}
+@media(max-width:1050px){.projects-home-grid{grid-template-columns:repeat(2,minmax(240px,1fr))}}
+@media(max-width:680px){.projects-home-grid{grid-template-columns:1fr}.project-home-hero h2{font-size:23px}}
+
 </style>
 </head>
 <body>
@@ -88,6 +114,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         <div class="top-actions">
           <span id="liveBadge" class="live-badge">● Live</span>
           <span id="userBadge" class="user-badge"></span>
+          <button id="homeBtn" class="btn hidden">← Progetti</button>
           <button id="changePasswordBtn" class="btn">Password</button>
           <button id="manageUsersBtn" class="btn hidden">Utenti</button>
           <button id="logoutBtn" class="btn">Esci</button>
@@ -96,6 +123,40 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
     </header>
 
     <main class="container">
+
+      <section id="projectHomeView" class="project-home">
+        <div class="project-home-hero">
+          <div>
+            <h2>I miei progetti</h2>
+            <p>Scegli il progetto su cui vuoi lavorare. Lo stesso link gestisce tutti i cruscotti del team.</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span id="homeRoleBadge" class="home-role-badge"></span>
+            <button id="homeNewProjectBtn" class="btn primary hidden">＋ Nuovo progetto</button>
+          </div>
+        </div>
+
+        <div class="home-section-title">
+          <div><h3>Progetti disponibili</h3><p>Visualizzi solo i progetti consentiti dal tuo ruolo e dalle assegnazioni.</p></div>
+          <div id="homeProjectsSummary" class="muted"></div>
+        </div>
+        <div id="projectsHomeGrid" class="projects-home-grid"></div>
+
+        <section id="accessOverview" class="card access-card hidden">
+        <div class="access-head">
+          <div>
+            <h3>Accessi alla dashboard</h3>
+            <div class="muted">Account abilitati e ruoli. <strong>Admin = Interno</strong>; <strong>Editor = Esterno</strong>; Viewer = sola lettura.</div>
+          </div>
+          <div id="accessSummary" class="access-summary"></div>
+        </div>
+        <div id="accessOverviewBody"></div>
+        <div class="account-note">Per sicurezza, l’elenco completo degli account e la modifica dei ruoli sono visibili solo agli Admin Interni. Gli Editor Esterni possono operare esclusivamente sui progetti a cui sono assegnati.</div>
+      </section>
+      </section>
+
+      <div id="dashboardWorkspace" class="hidden">
+
       <section class="hero">
         <div>
           <h2 id="projectHeading">Cruscotto operativo</h2>
@@ -113,18 +174,6 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
           <button id="exportBtn" class="btn">↓ Esporta CSV</button>
           <button id="addBtn" class="btn primary hidden">＋ Nuova attività</button>
         </div>
-      </section>
-
-      <section id="accessOverview" class="card access-card hidden">
-        <div class="access-head">
-          <div>
-            <h3>Accessi alla dashboard</h3>
-            <div class="muted">Account abilitati e ruoli. <strong>Admin = Interno</strong>; <strong>Editor = Esterno</strong>; Viewer = sola lettura.</div>
-          </div>
-          <div id="accessSummary" class="access-summary"></div>
-        </div>
-        <div id="accessOverviewBody"></div>
-        <div class="account-note">Per sicurezza, l’elenco completo degli account e la modifica dei ruoli sono visibili solo agli Admin Interni. Gli Editor Esterni possono operare esclusivamente sui progetti a cui sono assegnati.</div>
       </section>
 
       <section class="kpis">
@@ -174,6 +223,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
       </section>
 
       <footer class="footer">Team Activity Tracker V4 · multi-progetto · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
+          </div>
     </main>
   </div>
 
@@ -341,17 +391,22 @@ async function init() {
 function wireEvents() {
   $('loginForm').addEventListener('submit', login);
   $('logoutBtn').addEventListener('click', () => sb.auth.signOut());
+  $('homeBtn').addEventListener('click', showProjectHome);
   $('refreshBtn').addEventListener('click', loadActivities);
   $('addBtn').addEventListener('click', () => openActivityDialog(null));
   $('exportBtn').addEventListener('click', exportCSV);
   $('csvInput').addEventListener('change', importCSV);
   $('activityForm').addEventListener('submit', saveActivity);
   $('deleteActivityBtn').addEventListener('click', deleteActivity);
-  $('manageUsersBtn').addEventListener('click', () => $('accessOverview').scrollIntoView({behavior:'smooth',block:'start'}));
+  $('manageUsersBtn').addEventListener('click', () => {
+    showProjectHome();
+    setTimeout(() => $('accessOverview').scrollIntoView({behavior:'smooth',block:'start'}), 60);
+  });
   $('changePasswordBtn').addEventListener('click', () => { $('passwordError').textContent=''; $('newPassword').value=''; $('confirmPassword').value=''; $('passwordDialog').showModal(); });
   $('passwordForm').addEventListener('submit', changePassword);
   $('projectSelect').addEventListener('change', changeProject);
   $('newProjectBtn').addEventListener('click', () => { $('projectForm').reset(); $('projectDialog').showModal(); });
+  $('homeNewProjectBtn').addEventListener('click', () => { $('projectForm').reset(); $('projectDialog').showModal(); });
   $('projectForm').addEventListener('submit', createProject);
   ['search','statusFilter','priorityFilter','ambitoFilter','ownerFilter'].forEach(id => $(id).addEventListener(id === 'search' ? 'input' : 'change', applyFilters));
   $('clearFilters').addEventListener('click', () => { ['search','statusFilter','priorityFilter','ambitoFilter','ownerFilter'].forEach(id => $(id).value=''); applyFilters(); });
@@ -371,6 +426,9 @@ async function login(e) {
 function showLogin() {
   $('appView').classList.add('hidden');
   $('loginView').classList.remove('hidden');
+  $('projectHomeView')?.classList.remove('hidden');
+  $('dashboardWorkspace')?.classList.add('hidden');
+  $('homeBtn')?.classList.add('hidden');
   profile = null; rows = []; filtered = [];
   if (realtimeChannel && sb) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
 }
@@ -383,8 +441,8 @@ async function enterApp() {
     applyRoleUI();
     await loadProjects();
     if (isAdmin()) await loadAccessOverview();
-    await loadActivities();
-    subscribeRealtime();
+    await renderProjectHome();
+    showProjectHome();
   } catch (err) {
     console.error(err);
     toast(err.message || 'Errore di caricamento', 'error');
@@ -406,6 +464,9 @@ function applyRoleUI() {
   $('newProjectBtn').classList.toggle('hidden', !isAdmin());
   $('importLabel').classList.toggle('hidden', !isAdmin());
   $('accessOverview').classList.toggle('hidden', !isAdmin());
+  $('homeNewProjectBtn').classList.toggle('hidden', !isAdmin());
+  const homeRole = profile.role === 'admin' ? 'Admin · Interno' : profile.role === 'editor' ? 'Editor · Esterno' : 'Viewer · Sola lettura';
+  $('homeRoleBadge').textContent = homeRole;
   $('roleHelp').textContent = isAdmin()
     ? 'Admin Interno: tutti i progetti, ruoli, import ed eliminazione'
     : isEditor()
@@ -418,6 +479,82 @@ function rolePresentation(role) {
   if (role === 'admin') return { label:'Admin', type:'Interno', cls:'internal' };
   if (role === 'editor') return { label:'Editor', type:'Esterno', cls:'external' };
   return { label:'Viewer', type:'Sola lettura', cls:'readonly' };
+}
+
+
+function showProjectHome() {
+  $('projectHomeView').classList.remove('hidden');
+  $('dashboardWorkspace').classList.add('hidden');
+  $('homeBtn').classList.add('hidden');
+  if (realtimeChannel && sb) {
+    sb.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+  renderProjectHome();
+}
+
+async function renderProjectHome() {
+  const grid = $('projectsHomeGrid');
+  if (!grid) return;
+
+  $('homeProjectsSummary').textContent = `${projects.length} ${projects.length === 1 ? 'progetto disponibile' : 'progetti disponibili'}`;
+
+  if (!projects.length) {
+    grid.innerHTML = `<div class="home-empty" style="grid-column:1/-1">
+      ${isAdmin()
+        ? 'Non sono ancora presenti progetti. Usa <strong>＋ Nuovo progetto</strong> per creare il primo.'
+        : 'Il tuo account non è ancora assegnato a nessun progetto. Contatta un Admin Interno.'}
+    </div>`;
+    return;
+  }
+
+  // I conteggi rispettano automaticamente le policy RLS.
+  let activityRows = [];
+  const countRes = await sb.from('activities').select('project_id,Stato,Priorità');
+  if (!countRes.error) activityRows = countRes.data || [];
+
+  const lastId = localStorage.getItem('team_tracker_project_id');
+
+  grid.innerHTML = projects.map(p => {
+    const own = activityRows.filter(r => r.project_id === p.project_id);
+    const total = own.length;
+    const closed = own.filter(r => ['terminata','chiusa','completata','conclusa'].includes(String(r.Stato||'').trim().toLowerCase())).length;
+    const open = Math.max(0, total - closed);
+    const high = own.filter(r => String(r.Priorità||'').trim().toLowerCase() === 'alta' &&
+      !['terminata','chiusa','completata','conclusa'].includes(String(r.Stato||'').trim().toLowerCase())).length;
+
+    return `<article class="card project-home-card ${lastId===p.project_id?'last-opened':''}" data-open-project="${esc(p.project_id)}">
+      <div class="project-code">${esc(p.project_code)}</div>
+      <h3>${esc(p.project_name)}</h3>
+      <p>${esc(p.description || 'Cruscotto operativo del progetto.')}</p>
+      <div class="project-home-stats">
+        <div class="project-home-stat"><b>${total}</b><span>Attività</span></div>
+        <div class="project-home-stat"><b>${open}</b><span>Aperte</span></div>
+        <div class="project-home-stat"><b>${high}</b><span>Priorità alte</span></div>
+      </div>
+      <div class="project-card-arrow">Apri progetto →</div>
+    </article>`;
+  }).join('');
+
+  document.querySelectorAll('[data-open-project]').forEach(card => {
+    card.addEventListener('click', () => openProject(card.dataset.openProject));
+  });
+}
+
+async function openProject(projectId) {
+  currentProject = projects.find(p => p.project_id === projectId) || null;
+  if (!currentProject) return;
+
+  localStorage.setItem('team_tracker_project_id', currentProject.project_id);
+  $('projectSelect').value = currentProject.project_id;
+  updateProjectHeader();
+
+  $('projectHomeView').classList.add('hidden');
+  $('dashboardWorkspace').classList.remove('hidden');
+  $('homeBtn').classList.remove('hidden');
+
+  await loadActivities();
+  subscribeRealtime();
 }
 
 async function loadProjects(preferredProjectId = null) {
@@ -456,11 +593,8 @@ function updateProjectHeader() {
 }
 
 async function changeProject() {
-  currentProject = projects.find(p => p.project_id === $('projectSelect').value) || null;
-  if (currentProject) localStorage.setItem('team_tracker_project_id', currentProject.project_id);
-  updateProjectHeader();
-  await loadActivities();
-  subscribeRealtime();
+  const projectId = $('projectSelect').value;
+  await openProject(projectId);
 }
 
 async function createProject(e) {
@@ -480,9 +614,9 @@ async function createProject(e) {
   $('projectDialog').close();
   toast('Progetto creato.');
   await loadProjects(data.project_id);
-  await loadAccessOverview();
-  await loadActivities();
-  subscribeRealtime();
+  if (isAdmin()) await loadAccessOverview();
+  await renderProjectHome();
+  await openProject(data.project_id);
 }
 
 async function loadAccessOverview() {
