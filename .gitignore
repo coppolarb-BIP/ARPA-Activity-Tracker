@@ -1,2 +1,7 @@
+# Non pubblicare CSV reali nel repository pubblico.
+data/*.csv
+!data/TODO_TEMPLATE.csv
+
+# File locali / sistema
 .DS_Store
 Thumbs.db
