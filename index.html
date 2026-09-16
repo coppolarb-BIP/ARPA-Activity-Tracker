@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="Team Activity Tracker - dashboard multiutente e multi-progetto con Supabase" />
-  <title>Team Activity Tracker | Multi-Progetto</title>
+  <title>Team Activity Tracker | Multi-Progetto V9</title>
   <style>
 :root{
   --bg:#f3f6fa;--panel:#fff;--text:#152235;--muted:#66758a;--line:#dce4ee;
@@ -91,11 +91,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
 .project-resource-total span{font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.04em}
 .project-resource-total b{font-size:19px;color:var(--ink)}
 .home-admin-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn.danger-soft:hover{
-  border-color:#4F8E87;
-  color:#0F3037;
-  background:#DDEEEB;
-}
+.btn.danger-soft{border-color:#f5c2c7;color:#b42318;background:#fff7f7}
 .btn.danger-soft:hover{background:#fff0f0}
 .project-dialog-note{padding:9px 11px;border-radius:10px;background:#f8fafc;border:1px solid var(--line);font-size:12px;color:var(--muted);margin-top:4px}
 
@@ -115,6 +111,14 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
 .resource-pill{display:inline-flex;padding:3px 7px;border-radius:999px;border:1px solid var(--line);background:#f8fafc;font-size:10px;font-weight:900}
 .resource-empty{padding:26px;text-align:center;color:var(--muted)}
 @media(max-width:680px){.resources-summary{grid-template-columns:1fr}.resources-table th:nth-child(3),.resources-table td:nth-child(3){display:none}}
+
+
+/* ===== V9 · Recap progetto + account attivi + filtri attività ===== */
+.table-toolbar{margin:0;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;background:#fbfcfe}
+.project-accounts-card{padding:16px;margin-bottom:16px}.project-accounts-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}.project-accounts-head h3{margin:0 0 4px;font-size:14px}.project-accounts-head p{margin:0;color:var(--muted);font-size:12px}.account-kpis{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:9px;margin-bottom:12px}.account-kpi{padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:#f8fafc}.account-kpi b{display:block;font-size:20px}.account-kpi span{font-size:10px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.03em}.project-account-list{display:flex;gap:7px;flex-wrap:wrap}.project-account-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px}.project-account-chip strong{font-weight:900}.project-account-chip small{color:var(--muted)}
+.recap-body{padding:18px;max-height:68vh;overflow:auto}.recap-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}.recap-summary .mini{padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}.recap-summary .mini b{display:block;font-size:22px}.recap-summary .mini span{font-size:10px;color:var(--muted);font-weight:900;text-transform:uppercase}.recap-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.recap-project-banner{padding:10px 12px;border:1px solid #cfe3dd;background:var(--soft);border-radius:10px;margin-bottom:12px;color:var(--brand2);font-weight:800}.recap-group{border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:10px;overflow:hidden}.recap-group-head{padding:10px 12px;background:#f8fafc;border-bottom:1px solid var(--line)}.recap-group-head strong{display:block}.recap-group-head small{color:var(--muted)}.recap-event{padding:10px 12px;border-bottom:1px solid #edf1f5}.recap-event:last-child{border-bottom:0}.recap-event-meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px}.recap-event-meta strong{font-size:12px}.recap-event-meta span{font-size:11px;color:var(--muted)}.recap-change{font-size:12px;color:#475467}.recap-change b{color:var(--text)}.recap-empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}#recapBtn{font-weight:800}
+.btn.danger-soft{border-color:#6FA7A1;color:#123C45;background:#EAF4F2}.btn.danger-soft:hover{border-color:#4F8E87;color:#0F3037;background:#DDEEEB}
+@media(max-width:760px){.account-kpis{grid-template-columns:1fr 1fr}.recap-summary{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -150,6 +154,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
           <span id="liveBadge" class="live-badge">● Live</span>
           <span id="userBadge" class="user-badge"></span>
           <button id="homeBtn" class="btn hidden">← Progetti</button>
+          <button id="recapBtn" class="btn hidden">🕘 Recap modifiche</button>
           <button id="changePasswordBtn" class="btn">Password</button>
           <button id="manageUsersBtn" class="btn hidden">Utenti</button>
           <button id="logoutBtn" class="btn">Esci</button>
@@ -235,31 +240,26 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </article>
       </section>
 
-      <section class="card toolbar">
-        <input id="search" class="field search" placeholder="Cerca attività, note, owner…" />
-        <select id="statusFilter" class="field"><option value="">Tutti gli stati</option></select>
-        <select id="priorityFilter" class="field"><option value="">Tutte le priorità</option></select>
-        <select id="ambitoFilter" class="field"><option value="">Tutti gli ambiti</option></select>
-        <select id="ownerFilter" class="field"><option value="">Tutti gli owner</option></select>
-        <button id="clearFilters" class="btn">Azzera filtri</button>
+      <section id="projectAccountsSection" class="card project-accounts-card hidden">
+        <div class="project-accounts-head">
+          <div><h3>Account attivi nel progetto</h3><p>Account abilitati ad accedere al progetto selezionato. Vista riservata agli Admin Interni.</p></div>
+          <button id="refreshProjectAccountsBtn" class="btn">↻ Aggiorna account</button>
+        </div>
+        <div id="projectAccountsBody"></div>
       </section>
-
-      
-        <section id="projectResourcesSection" class="card hidden" style="margin-bottom:14px">
-          <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-            <div>
-              <h3 style="margin:0">Risorse del progetto</h3>
-              <p class="muted" style="margin:4px 0 0">Vista riservata agli Admin Interni. Elenco ricavato dagli Owner ARPA e Owner BIP.</p>
-            </div>
-            <button id="refreshProjectResourcesBtn" class="btn">↻ Aggiorna risorse</button>
-          </div>
-          <div id="projectResourcesInlineBody" style="margin-top:14px"></div>
-        </section>
 
 <section class="card table-card">
         <div class="table-headline">
           <div><strong id="rowsCount">0 attività</strong><span id="lastUpdated" class="muted"></span></div>
           <span id="roleHelp" class="role-help"></span>
+        </div>
+        <div class="toolbar table-toolbar">
+          <input id="search" class="field search" placeholder="Cerca attività, note, owner…" />
+        <select id="statusFilter" class="field"><option value="">Tutti gli stati</option></select>
+        <select id="priorityFilter" class="field"><option value="">Tutte le priorità</option></select>
+        <select id="ambitoFilter" class="field"><option value="">Tutti gli ambiti</option></select>
+        <select id="ownerFilter" class="field"><option value="">Tutti gli owner</option></select>
+        <button id="clearFilters" class="btn">Azzera filtri</button>
         </div>
         <div class="table-wrap">
           <table class="table">
@@ -270,7 +270,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </div>
       </section>
 
-      <footer class="footer">Team Activity Tracker V8 · multi-progetto · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
+      <footer class="footer">Team Activity Tracker V9 · multi-progetto · recap modifiche · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
           </div>
     </main>
   </div>
@@ -293,28 +293,16 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
     <div class="modal-foot"><button class="btn" type="button" data-close="historyDialog">Chiudi</button></div>
   </dialog>
 
-
-  <dialog id="projectResourcesDialog">
+  <dialog id="recapDialog">
     <div class="modal-head">
-      <div>
-        <h3>Risorse del progetto</h3>
-        <small id="projectResourcesTitle" class="muted"></small>
-      </div>
-      <button class="close" type="button" data-close="projectResourcesDialog">×</button>
+      <div><h3>Recap modifiche del progetto</h3><small id="recapTitle" class="muted"></small></div>
+      <div class="recap-controls"><select id="recapRange" class="field" style="width:auto"><option value="today">Oggi</option><option value="24h">Ultime 24 ore</option><option value="7d">Ultimi 7 giorni</option></select><button class="close" type="button" data-close="recapDialog">×</button></div>
     </div>
-    <div class="users-body">
-      <div class="info-box">
-        Elenco operativo ricavato dai campi <strong>Owner ARPA</strong> e <strong>Owner BIP</strong>.
-        Questa vista è disponibile esclusivamente agli <strong>Admin Interni</strong>.
-      </div>
-      <div id="projectResourcesBody"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn" type="button" data-close="projectResourcesDialog">Chiudi</button>
-    </div>
+    <div id="recapBody" class="recap-body"></div>
+    <div class="modal-foot"><button id="refreshRecapBtn" class="btn" type="button">↻ Aggiorna recap</button><button class="btn" type="button" data-close="recapDialog">Chiudi</button></div>
   </dialog>
 
-  <dialog id="usersDialog">
+<dialog id="usersDialog">
     <div class="modal-head"><div><h3>Gestione utenti</h3><small class="muted">Gli account Auth devono essere creati prima nel pannello Supabase.</small></div><button class="close" type="button" data-close="usersDialog">×</button></div>
     <div class="users-body">
       <div class="info-box">Da qui puoi cambiare il ruolo di utenti già presenti: <strong>Viewer</strong> visualizza, <strong>Editor · Esterno</strong> inserisce/modifica i progetti assegnati, <strong>Admin · Interno</strong> gestisce tutto.</div>
@@ -463,7 +451,10 @@ function wireEvents() {
   $('loginForm').addEventListener('submit', login);
   $('logoutBtn').addEventListener('click', () => sb.auth.signOut());
   $('homeBtn').addEventListener('click', showProjectHome);
-  $('refreshProjectResourcesBtn')?.addEventListener('click', () => renderProjectResourcesInline(currentProject?.project_id));
+  $('recapBtn').addEventListener('click', openProjectRecap);
+  $('refreshProjectAccountsBtn')?.addEventListener('click', () => renderProjectAccounts(currentProject?.project_id));
+  $('refreshRecapBtn')?.addEventListener('click', loadProjectRecap);
+  $('recapRange')?.addEventListener('change', loadProjectRecap);
   $('refreshBtn').addEventListener('click', loadActivities);
   $('addBtn').addEventListener('click', () => openActivityDialog(null));
   $('exportBtn').addEventListener('click', exportCSV);
@@ -499,6 +490,7 @@ function showLogin() {
   $('projectHomeView')?.classList.remove('hidden');
   $('dashboardWorkspace')?.classList.add('hidden');
   $('homeBtn')?.classList.add('hidden');
+  $('recapBtn')?.classList.add('hidden');
   profile = null; rows = []; filtered = [];
   if (realtimeChannel && sb) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
 }
@@ -531,7 +523,7 @@ function applyRoleUI() {
   $('userBadge').textContent = `${profile.display_name || profile.email} · ${roleLabel}`;
   $('addBtn').classList.toggle('hidden', !isEditor());
   $('manageUsersBtn').classList.toggle('hidden', !isAdmin());
-  $('projectResourcesSection')?.classList.toggle('hidden', !isAdmin());
+  $('projectAccountsSection')?.classList.toggle('hidden', !isAdmin());
   $('newProjectBtn').classList.toggle('hidden', !isAdmin());
   $('importLabel').classList.toggle('hidden', !isAdmin());
   $('accessOverview').classList.add('hidden');
@@ -558,6 +550,7 @@ function showProjectHome() {
   $('projectHomeView').classList.remove('hidden');
   $('dashboardWorkspace').classList.add('hidden');
   $('homeBtn').classList.add('hidden');
+  $('recapBtn').classList.add('hidden');
   if (realtimeChannel && sb) {
     sb.removeChannel(realtimeChannel);
     realtimeChannel = null;
@@ -580,8 +573,7 @@ async function renderProjectHome() {
     return;
   }
 
-  // Conteggi aggregati. Per "Risorse" contiamo i nominativi unici presenti negli Owner ARPA/BIP.
-  // In Home viene mostrato solo il totale, non l'elenco delle persone.
+  // Conteggi aggregati delle attività. Gli account attivi sono mostrati solo dentro il singolo progetto agli Admin Interni.
   let activityRows = [];
   const countRes = await sb.from('activities').select('project_id,Stato,Priorità,"Owner ARPA","Owner BIP"');
   if (!countRes.error) activityRows = countRes.data || [];
@@ -596,14 +588,6 @@ async function renderProjectHome() {
     const high = own.filter(r => String(r.Priorità||'').trim().toLowerCase() === 'alta' &&
       !['terminata','chiusa','completata','conclusa'].includes(String(r.Stato||'').trim().toLowerCase())).length;
 
-    const resources = new Set();
-    own.forEach(r => {
-      [r['Owner ARPA'], r['Owner BIP']].forEach(v => {
-        const name = String(v || '').trim();
-        if (name) resources.add(name.toLocaleLowerCase('it'));
-      });
-    });
-
     return `<article class="card project-home-card ${lastId===p.project_id?'last-opened':''}">
       <div class="project-card-main" data-open-project="${esc(p.project_id)}">
         <div class="project-code">${esc(p.project_code)}</div>
@@ -614,7 +598,6 @@ async function renderProjectHome() {
           <div class="project-home-stat"><b>${open}</b><span>Aperte</span></div>
           <div class="project-home-stat"><b>${high}</b><span>Priorità alte</span></div>
         </div>
-        <div class="project-resource-total"><span>Risorse totali del progetto</span><b>${resources.size}</b></div>
         <div class="project-card-arrow">Apri progetto →</div>
       </div>
       ${isAdmin() ? `<div class="project-card-actions">
@@ -646,9 +629,10 @@ async function openProject(projectId) {
   $('projectHomeView').classList.add('hidden');
   $('dashboardWorkspace').classList.remove('hidden');
   $('homeBtn').classList.remove('hidden');
+  $('recapBtn').classList.remove('hidden');
 
   await loadActivities();
-  if (isAdmin()) await renderProjectResourcesInline(currentProject.project_id);
+  if (isAdmin()) await renderProjectAccounts(currentProject.project_id);
   subscribeRealtime();
 }
 
@@ -791,217 +775,86 @@ async function deleteProject(projectId) {
 }
 
 
-function splitResourceNames(value) {
-  return String(value || '')
-    .split(/\s*(?:;|,|\n|\s\/\s)\s*/)
-    .map(x => x.trim())
-    .filter(Boolean);
-}
 
-
-async function renderProjectResourcesInline(projectId) {
+async function renderProjectAccounts(projectId) {
   if (!isAdmin()) return;
-
-  const body = $('projectResourcesInlineBody');
+  const body = $('projectAccountsBody');
   if (!body) return;
-
   const project = projects.find(p => p.project_id === projectId) || currentProject;
-  if (!project) {
-    body.innerHTML = '<div class="muted">Nessun progetto selezionato.</div>';
+  if (!project) { body.innerHTML = '<div class="muted">Nessun progetto selezionato.</div>'; return; }
+  body.innerHTML = '<div class="muted">Caricamento account…</div>';
+  const [usersRes, membersRes] = await Promise.all([
+    sb.from('profiles').select('user_id,email,display_name,role').order('email'),
+    sb.from('project_members').select('project_id,user_id').eq('project_id', project.project_id)
+  ]);
+  if (usersRes.error || membersRes.error) {
+    body.innerHTML = `<div class="form-error">${esc(usersRes.error?.message || membersRes.error?.message || 'Errore nel caricamento degli account.')}</div>`;
     return;
   }
-
-  body.innerHTML = '<div class="muted">Caricamento risorse…</div>';
-
-  let projectRows = [];
-  if (currentProject?.project_id === project.project_id && Array.isArray(rows)) {
-    projectRows = rows;
-  } else {
-    const { data, error } = await sb
-      .from('activities')
-      .select('row_id,Stato,"Descrizione attività","Owner ARPA","Owner BIP"')
-      .eq('project_id', project.project_id);
-
-    if (error) {
-      body.innerHTML = `<div class="form-error">${esc(error.message)}</div>`;
-      return;
-    }
-    projectRows = data || [];
-  }
-
-  const map = new Map();
-
-  const add = (name, origin, activity) => {
-    const clean = String(name || '').trim();
-    if (!clean) return;
-    const key = clean.toLocaleLowerCase('it');
-    if (!map.has(key)) {
-      map.set(key, { name: clean, origins: new Set(), activities: 0, open: 0 });
-    }
-    const item = map.get(key);
-    item.origins.add(origin);
-    item.activities += 1;
-    if (!['terminata','chiusa','completata','conclusa'].includes(String(activity?.Stato || '').trim().toLowerCase())) {
-      item.open += 1;
-    }
-  };
-
-  projectRows.forEach(r => {
-    splitResourceNames(r['Owner ARPA']).forEach(name => add(name, 'ARPA', r));
-    splitResourceNames(r['Owner BIP']).forEach(name => add(name, 'BIP', r));
-  });
-
-  const resources = [...map.values()].sort((a,b) =>
-    a.name.localeCompare(b.name, 'it', { sensitivity:'base' })
-  );
-
-  const arpaCount = resources.filter(x => x.origins.has('ARPA')).length;
-  const bipCount = resources.filter(x => x.origins.has('BIP')).length;
-
-  body.innerHTML = `
-    <div class="resources-summary">
-      <div class="mini"><b>${resources.length}</b><span>Risorse totali</span></div>
-      <div class="mini"><b>${arpaCount}</b><span>Owner ARPA</span></div>
-      <div class="mini"><b>${bipCount}</b><span>Owner BIP</span></div>
-    </div>
-    ${resources.length ? `
-      <div class="resources-table-wrap">
-        <table class="resources-table">
-          <thead>
-            <tr>
-              <th>Risorsa</th>
-              <th>Ambito</th>
-              <th>Attività assegnate</th>
-              <th>Aperte</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${resources.map(r => `
-              <tr>
-                <td class="resource-name">${esc(r.name)}</td>
-                <td>
-                  <div class="resource-origin">
-                    ${[...r.origins].sort().map(o => `<span class="resource-pill">${esc(o)}</span>`).join('')}
-                  </div>
-                </td>
-                <td>${r.activities}</td>
-                <td>${r.open}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>` :
-      '<div class="resource-empty">Non risultano ancora risorse valorizzate negli Owner del progetto.</div>'
-    }`;
+  const users = usersRes.data || [];
+  const memberIds = new Set((membersRes.data || []).map(m => m.user_id));
+  const active = users.filter(u => u.role === 'admin' || memberIds.has(u.user_id));
+  const admins = active.filter(u => u.role === 'admin').length;
+  const editors = active.filter(u => u.role === 'editor').length;
+  const viewers = active.filter(u => u.role === 'viewer').length;
+  body.innerHTML = `<div class="account-kpis"><div class="account-kpi"><b>${active.length}</b><span>Account attivi</span></div><div class="account-kpi"><b>${admins}</b><span>Admin Interni</span></div><div class="account-kpi"><b>${editors}</b><span>Editor Esterni</span></div><div class="account-kpi"><b>${viewers}</b><span>Viewer</span></div></div><div class="project-account-list">${active.length ? active.map(u => { const rp=rolePresentation(u.role); return `<span class="project-account-chip"><strong>${esc(u.display_name || u.email)}</strong><small>${esc(rp.label)} · ${esc(rp.type)}</small></span>`; }).join('') : '<span class="muted">Nessun account attivo assegnato a questo progetto.</span>'}</div>`;
 }
 
+function recapRangeBounds(mode) {
+  const now = new Date();
+  if (mode === '24h') return { from:new Date(now.getTime()-24*60*60*1000), to:now };
+  if (mode === '7d') return { from:new Date(now.getTime()-7*24*60*60*1000), to:now };
+  return { from:new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0,0), to:now };
+}
 
-async function showProjectResources(projectId) {
-  if (!isAdmin()) {
-    toast('La vista Risorse è riservata agli Admin Interni.', 'error');
-    return;
+async function openProjectRecap() {
+  if (!currentProject) return;
+  $('recapRange').value='today';
+  $('recapTitle').textContent=`${currentProject.project_code} · ${currentProject.project_name}`;
+  $('recapDialog').showModal();
+  await loadProjectRecap();
+}
+
+async function queryProjectAudit(fromIso,toIso) {
+  let res=await sb.from('audit_log').select('*').eq('project_id',currentProject.project_id).gte('changed_at',fromIso).lte('changed_at',toIso).order('changed_at',{ascending:false}).limit(500);
+  if (!res.error) return res.data || [];
+  const ids=rows.map(r=>r.row_id).filter(Boolean);
+  if (!ids.length) return [];
+  const all=[];
+  for(let i=0;i<ids.length;i+=100){
+    const q=await sb.from('audit_log').select('*').in('activity_row_id',ids.slice(i,i+100)).gte('changed_at',fromIso).lte('changed_at',toIso).order('changed_at',{ascending:false}).limit(500);
+    if(q.error) throw q.error;
+    all.push(...(q.data||[]));
   }
+  return all.sort((a,b)=>new Date(b.changed_at)-new Date(a.changed_at));
+}
 
-  const project = projects.find(p => p.project_id === projectId) || currentProject;
-  if (!project) return;
+function recapActivityInfo(item){const source=item.new_data||item.old_data||{};const id=source['ID']??'—';const desc=source['Descrizione attività']||'Attività';return{id,desc,key:item.activity_row_id||`${id}-${desc}`};}
+function recapChangeSummary(item){
+  if(item.action==='INSERT')return'Attività creata';
+  if(item.action==='DELETE')return'Attività eliminata';
+  const before=item.old_data||{},after=item.new_data||{};
+  const changed=COLS.filter(c=>normalizeValue(before[c])!==normalizeValue(after[c]));
+  if(!changed.length)return'Aggiornamento tecnico senza variazioni sui campi operativi';
+  const parts=changed.slice(0,4).map(c=>`<b>${esc(c)}</b>: ${esc(normalizeValue(before[c])||'—')} → ${esc(normalizeValue(after[c])||'—')}`);
+  if(changed.length>4)parts.push(`+ ${changed.length-4} altri campi`);
+  return parts.join(' · ');
+}
 
-  $('projectResourcesTitle').textContent = `${project.project_code} · ${project.project_name}`;
-  $('projectResourcesBody').innerHTML = '<div class="muted">Caricamento risorse…</div>';
-  $('projectResourcesDialog').showModal();
-
-  let projectRows = [];
-  if (currentProject?.project_id === project.project_id && Array.isArray(rows) && rows.length) {
-    projectRows = rows;
-  } else {
-    const { data, error } = await sb
-      .from('activities')
-      .select('row_id,Stato,"Descrizione attività","Owner ARPA","Owner BIP"')
-      .eq('project_id', project.project_id);
-
-    if (error) {
-      $('projectResourcesBody').innerHTML = `<div class="form-error">${esc(error.message)}</div>`;
-      return;
-    }
-    projectRows = data || [];
-  }
-
-  const map = new Map();
-
-  const add = (name, origin, activity) => {
-    const clean = String(name || '').trim();
-    if (!clean) return;
-    const key = clean.toLocaleLowerCase('it');
-    if (!map.has(key)) {
-      map.set(key, {
-        name: clean,
-        origins: new Set(),
-        activities: 0,
-        open: 0
-      });
-    }
-    const item = map.get(key);
-    item.origins.add(origin);
-    item.activities += 1;
-    if (!['terminata','chiusa','completata','conclusa'].includes(String(activity?.Stato || '').trim().toLowerCase())) {
-      item.open += 1;
-    }
-  };
-
-  projectRows.forEach(r => {
-    splitResourceNames(r['Owner ARPA']).forEach(name => add(name, 'ARPA', r));
-    splitResourceNames(r['Owner BIP']).forEach(name => add(name, 'BIP', r));
-  });
-
-  const resources = [...map.values()].sort((a,b) =>
-    a.name.localeCompare(b.name, 'it', { sensitivity:'base' })
-  );
-
-  const arpaCount = resources.filter(x => x.origins.has('ARPA')).length;
-  const bipCount = resources.filter(x => x.origins.has('BIP')).length;
-
-  if (!resources.length) {
-    $('projectResourcesBody').innerHTML = `
-      <div class="resources-summary">
-        <div class="mini"><b>0</b><span>Risorse totali</span></div>
-        <div class="mini"><b>0</b><span>Owner ARPA</span></div>
-        <div class="mini"><b>0</b><span>Owner BIP</span></div>
-      </div>
-      <div class="resource-empty">Non risultano ancora risorse valorizzate negli Owner del progetto.</div>`;
-    return;
-  }
-
-  $('projectResourcesBody').innerHTML = `
-    <div class="resources-summary">
-      <div class="mini"><b>${resources.length}</b><span>Risorse totali</span></div>
-      <div class="mini"><b>${arpaCount}</b><span>Owner ARPA</span></div>
-      <div class="mini"><b>${bipCount}</b><span>Owner BIP</span></div>
-    </div>
-    <div class="resources-table-wrap">
-      <table class="resources-table">
-        <thead>
-          <tr>
-            <th>Risorsa</th>
-            <th>Ambito</th>
-            <th>Attività assegnate</th>
-            <th>Aperte</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${resources.map(r => `
-            <tr>
-              <td class="resource-name">${esc(r.name)}</td>
-              <td>
-                <div class="resource-origin">
-                  ${[...r.origins].sort().map(o => `<span class="resource-pill">${esc(o)}</span>`).join('')}
-                </div>
-              </td>
-              <td>${r.activities}</td>
-              <td>${r.open}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>`;
+async function loadProjectRecap(){
+  if(!currentProject)return;
+  const body=$('recapBody'); body.innerHTML='<div class="muted">Caricamento recap…</div>';
+  try{
+    const bounds=recapRangeBounds($('recapRange').value||'today');
+    const audit=await queryProjectAudit(bounds.from.toISOString(),bounds.to.toISOString());
+    const users=new Set(audit.map(x=>x.changed_by_email||'Sistema'));
+    const activities=new Set(audit.map(x=>recapActivityInfo(x).key));
+    const grouped=new Map();
+    audit.forEach(item=>{const info=recapActivityInfo(item);if(!grouped.has(info.key))grouped.set(info.key,{info,items:[]});grouped.get(info.key).items.push(item);});
+    $('recapTitle').textContent=`${currentProject.project_code} · ${currentProject.project_name}`;
+    if(!audit.length){body.innerHTML=`<div class="recap-project-banner">Progetto: ${esc(currentProject.project_code)} · ${esc(currentProject.project_name)}</div><div class="recap-summary"><div class="mini"><b>0</b><span>Modifiche</span></div><div class="mini"><b>0</b><span>Attività toccate</span></div><div class="mini"><b>0</b><span>Utenti attivi</span></div></div><div class="recap-empty">Nessuna modifica registrata nel periodo selezionato per questo progetto.</div>`;return;}
+    body.innerHTML=`<div class="recap-project-banner">Progetto: ${esc(currentProject.project_code)} · ${esc(currentProject.project_name)}</div><div class="recap-summary"><div class="mini"><b>${audit.length}</b><span>Modifiche</span></div><div class="mini"><b>${activities.size}</b><span>Attività toccate</span></div><div class="mini"><b>${users.size}</b><span>Utenti attivi</span></div></div>${[...grouped.values()].map(group=>`<div class="recap-group"><div class="recap-group-head"><strong>#${esc(group.info.id)} · ${esc(group.info.desc)}</strong><small>${group.items.length} ${group.items.length===1?'aggiornamento':'aggiornamenti'}</small></div>${group.items.map(item=>{const label={INSERT:'Creazione',UPDATE:'Modifica',DELETE:'Eliminazione'}[item.action]||item.action;return `<div class="recap-event"><div class="recap-event-meta"><strong>${esc(label)}</strong><span>${esc(item.changed_by_email||'Sistema')} · ${new Date(item.changed_at).toLocaleString('it-IT')}</span></div><div class="recap-change">${recapChangeSummary(item)}</div></div>`;}).join('')}</div>`).join('')}`;
+  }catch(err){console.error(err);body.innerHTML=`<div class="form-error">Recap non disponibile: ${esc(err?.message||String(err))}</div>`;}
 }
 
 async function openUsersDialog() {
