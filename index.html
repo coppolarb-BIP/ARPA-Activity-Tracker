@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="Team Activity Tracker - dashboard multiutente e multi-progetto con Supabase" />
-  <title>Team Activity Tracker | Multi-Progetto V9</title>
+  <title>Team Activity Tracker | Multi-Progetto V10</title>
   <style>
 :root{
   --bg:#f3f6fa;--panel:#fff;--text:#152235;--muted:#66758a;--line:#dce4ee;
@@ -255,8 +255,19 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </div>
         <div class="toolbar table-toolbar">
           <input id="search" class="field search" placeholder="Cerca attività, note, owner…" />
-        <select id="statusFilter" class="field"><option value="">Tutti gli stati</option></select>
-        <select id="priorityFilter" class="field"><option value="">Tutte le priorità</option></select>
+        <select id="statusFilter" class="field">
+          <option value="">Tutti gli stati</option>
+          <option value="Da iniziare">Da iniziare</option>
+          <option value="In corso">In corso</option>
+          <option value="In attesa">In attesa</option>
+          <option value="Terminata">Terminata</option>
+        </select>
+        <select id="priorityFilter" class="field">
+          <option value="">Tutte le priorità</option>
+          <option value="Alta">Alta</option>
+          <option value="Media">Media</option>
+          <option value="Bassa">Bassa</option>
+        </select>
         <select id="ambitoFilter" class="field"><option value="">Tutti gli ambiti</option></select>
         <select id="ownerFilter" class="field"><option value="">Tutti gli owner</option></select>
         <button id="clearFilters" class="btn">Azzera filtri</button>
@@ -270,7 +281,7 @@ dialog{border:0;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.22);width:
         </div>
       </section>
 
-      <footer class="footer">Team Activity Tracker V9 · multi-progetto · recap modifiche · dati su Supabase · aggiornamento multiutente in tempo reale</footer>
+      <footer class="footer">Team Activity Tracker V10 · menu Stato/Priorità standardizzati · recap modifiche · dati su Supabase</footer>
           </div>
     </main>
   </div>
@@ -352,6 +363,8 @@ const COLS = [
   'Owner ARPA','Owner BIP','Data apertura','Data chiusura','Scadenza','Note aggiuntive / Storico'
 ];
 const INTERNAL_KEYS = new Set(['row_id','project_id','created_at','updated_at','created_by','updated_by']);
+const FIXED_STATUSES = ['Da iniziare','In corso','In attesa','Terminata'];
+const FIXED_PRIORITIES = ['Alta','Media','Bassa'];
 const STATUS_COLORS = {
   'Da iniziare':'#d97706','In corso':'#2563eb','In attesa':'#7c3aed','Bloccata':'#dc2626','Terminata':'#16a34a'
 };
@@ -982,14 +995,25 @@ function refreshAll() {
 }
 
 function populateFilters() {
-  const sets = {status:new Set(),priority:new Set(),ambito:new Set(),owner:new Set()};
+  // Stato e Priorità sono menu chiusi e uguali per tutti i progetti.
+  // Ambito e Owner restano dinamici in base ai dati del progetto aperto.
+  const sets = {ambito:new Set(),owner:new Set()};
   rows.forEach(r => {
-    if (r['Stato']) sets.status.add(r['Stato']);
-    if (r['Priorità']) sets.priority.add(r['Priorità']);
     if (r['Ambito']) sets.ambito.add(r['Ambito']);
     [r['Owner ARPA'], r['Owner BIP']].filter(Boolean).forEach(x => sets.owner.add(x));
   });
-  setOptions('statusFilter', sets.status); setOptions('priorityFilter', sets.priority); setOptions('ambitoFilter', sets.ambito); setOptions('ownerFilter', sets.owner);
+  setFixedOptions('statusFilter', 'Tutti gli stati', FIXED_STATUSES);
+  setFixedOptions('priorityFilter', 'Tutte le priorità', FIXED_PRIORITIES);
+  setOptions('ambitoFilter', sets.ambito);
+  setOptions('ownerFilter', sets.owner);
+}
+
+function setFixedOptions(id, firstLabel, values) {
+  const el = $(id);
+  const current = el.value;
+  el.innerHTML = `<option value="">${esc(firstLabel)}</option>` +
+    values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if (values.includes(current)) el.value = current;
 }
 
 function setOptions(id, values) {
@@ -1063,12 +1087,18 @@ function fieldHtml(col, value, isNew) {
   const span = ['Descrizione attività','Note aggiuntive / Storico'].includes(col) ? 'span2' : '';
   if (col === 'ID') return `<label>${esc(col)}<input class="field" name="${esc(col)}" value="${esc(val)}" placeholder="Automatico" readonly /></label>`;
   if (col === 'Stato') {
-    const opts=['','Da iniziare','In corso','In attesa','Bloccata','Terminata'];
-    return `<label>${esc(col)}<select class="field" name="${esc(col)}">${opts.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
+    const opts=FIXED_STATUSES;
+    const legacy = val && !opts.includes(val)
+      ? `<option value="" selected disabled>Valore da aggiornare: ${esc(val)}</option>`
+      : '';
+    return `<label>${esc(col)}<select class="field" name="${esc(col)}" required>${legacy}${opts.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
   }
   if (col === 'Priorità') {
-    const opts=['','Alta','Media','Bassa'];
-    return `<label>${esc(col)}<select class="field" name="${esc(col)}">${opts.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
+    const opts=FIXED_PRIORITIES;
+    const legacy = val && !opts.includes(val)
+      ? `<option value="" selected disabled>Valore da aggiornare: ${esc(val)}</option>`
+      : '';
+    return `<label>${esc(col)}<select class="field" name="${esc(col)}" required>${legacy}${opts.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
   }
   if (col === 'Note aggiuntive / Storico') return `<label class="${span}">${esc(col)}<textarea class="field" rows="5" name="${esc(col)}">${esc(val)}</textarea></label>`;
   const placeholder = ['Data apertura','Data chiusura','Scadenza'].includes(col) ? 'gg/mm/aaaa' : '';
@@ -1092,6 +1122,17 @@ async function saveActivity(e) {
   const submit = e.submitter; setBusy(submit,true,'Salvo…');
   const fd = new FormData(e.target); const payload={ project_id: currentProject.project_id };
   COLS.forEach(c => { const v=normalizeValue(fd.get(c)); if (c==='ID') { if (v) payload[c]=Number(v); } else payload[c]=v || null; });
+
+  if (!FIXED_STATUSES.includes(payload['Stato'])) {
+    setBusy(submit,false);
+    toast('Seleziona uno Stato valido: Da iniziare, In corso, In attesa o Terminata.','error');
+    return;
+  }
+  if (!FIXED_PRIORITIES.includes(payload['Priorità'])) {
+    setBusy(submit,false);
+    toast('Seleziona una Priorità valida: Alta, Media o Bassa.','error');
+    return;
+  }
   let result;
   if (editingRow) result = await sb.from('activities').update(payload).eq('row_id', editingRow.row_id).select().single();
   else result = await sb.from('activities').insert(payload).select().single();
